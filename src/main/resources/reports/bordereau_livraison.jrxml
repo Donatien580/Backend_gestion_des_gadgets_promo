@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="BordereauLivraison" pageWidth="595" pageHeight="842" columnWidth="555" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" uuid="b811c113-53d5-4dfa-8e9e-5921a0622e68">
+	<style name="tableHeader" mode="Opaque" backcolor="#0033A0" forecolor="#FFFFFF" hTextAlign="Center" vTextAlign="Middle" fontSize="10" isBold="true">
+		<box padding="2">
+			<pen lineWidth="1.0" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="tableCell" mode="Opaque" vTextAlign="Middle" fontSize="10" backcolor="#FFFFFF">
+		<box padding="2">
+			<pen lineWidth="1.0" lineColor="#000000"/>
+		</box>
+		<conditionalStyle>
+			<conditionExpression><![CDATA[$V{REPORT_COUNT}.intValue() % 2 == 1]]></conditionExpression>
+			<style mode="Opaque" backcolor="#FFFFFF"/>
+		</conditionalStyle>
+		<conditionalStyle>
+			<conditionExpression><![CDATA[$V{REPORT_COUNT}.intValue() % 2 == 0]]></conditionExpression>
+			<style mode="Opaque" backcolor="#D6EAF8"/>
+		</conditionalStyle>
+	</style>
+	<style name="tableTotal" mode="Transparent" vTextAlign="Middle" fontSize="10" isBold="true">
+		<box padding="2">
+			<pen lineWidth="1.5" lineColor="#000000"/>
+		</box>
+	</style>
+	<parameter name="numeroBordereau" class="java.lang.String"/>
+	<parameter name="dateEnvoi" class="java.util.Date"/>
+	<parameter name="destinataire" class="java.lang.String"/>
+	<parameter name="responsable" class="java.lang.String"/>
+	<parameter name="logoStream" class="java.io.InputStream"/>
+	<field name="libelleGadget" class="java.lang.String"/>
+	<field name="quantiteDistribuee" class="java.lang.Integer"/>
+	<variable name="totalGadgets" class="java.lang.Integer" calculation="Sum">
+		<variableExpression><![CDATA[$F{quantiteDistribuee}]]></variableExpression>
+	</variable>
+	<title>
+		<band height="160">
+			<image>
+				<reportElement x="0" y="0" width="80" height="80"/>
+				<imageExpression><![CDATA[$P{logoStream}]]></imageExpression>
+			</image>
+			<staticText>
+				<reportElement x="100" y="0" width="455" height="16" uuid="b196e80d-fa6a-405f-bb7e-19b1a93bf7b7"/>
+				<textElement textAlignment="Center">
+					<font size="11" isBold="true"/>
+				</textElement>
+				<text><![CDATA[SOCIETE NATIONALE D'ELECTRICITE DU BURKINA (SONABEL)]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="100" y="16" width="455" height="14" uuid="d71e4321-88e9-40ec-9298-2fa87d8a9e00"/>
+				<textElement textAlignment="Center"/>
+				<text><![CDATA[DIRECTION GENERALE]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="100" y="30" width="455" height="14" uuid="5549a634-1a85-42c6-bee8-e13eb2c91b7b"/>
+				<textElement textAlignment="Center"/>
+				<text><![CDATA[SECRETARIAT GENERAL]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="100" y="44" width="455" height="14" uuid="aac59823-11b3-43f1-a978-208ed72715e8"/>
+				<textElement textAlignment="Center"/>
+				<text><![CDATA[POLE DISTRIBUTION ET COMMERCIALISATION]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="100" y="58" width="455" height="14" uuid="8ed96e02-7ca8-4001-bb6c-59a7df033ac8"/>
+				<textElement textAlignment="Center"/>
+				<text><![CDATA[DIRECTION COMMERCIALE ET MARKETING]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="100" y="72" width="455" height="14" uuid="f69a3c8a-b2dc-4b3a-bde9-1af42f7a109e"/>
+				<textElement textAlignment="Center"/>
+				<text><![CDATA[DEPARTEMENT MARKETING ET INNOVATIONS]]></text>
+			</staticText>
+			<line>
+				<reportElement x="0" y="90" width="555" height="1" uuid="3476db02-e091-4c97-902e-8ff906bbe91c"/>
+			</line>
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="100" width="555" height="20" forecolor="#FFFFFF" backcolor="#0033A0" uuid="711c35f0-8bed-4793-8258-6b9b2d43bec9"/>
+				<textElement textAlignment="Center">
+					<font size="14" isBold="true"/>
+				</textElement>
+				<text><![CDATA[BORDEREAU DE LIVRAISON]]></text>
+			</staticText>
+			<textField isStretchWithOverflow="true">
+				<reportElement x="0" y="130" width="555" height="15" uuid="72187820-3bc7-4b0e-916a-618e5cfa33e0"/>
+				<textFieldExpression><![CDATA["N/Ref : " + $P{numeroBordereau} + "/DG/SG/PDC/DCM/DMI/TB/AK"]]></textFieldExpression>
+			</textField>
+		</band>
+	</title>
+	<columnHeader>
+		<band height="22">
+			<staticText>
+				<reportElement style="tableHeader" x="0" y="0" width="304" height="22" uuid="0d0a6bd7-6251-47d4-8001-cd31f19681b7"/>
+				<text><![CDATA[Désignation]]></text>
+			</staticText>
+			<staticText>
+				<reportElement style="tableHeader" x="304" y="0" width="251" height="22" uuid="511bfcab-8024-4799-89d1-5c77a50615d3"/>
+				<text><![CDATA[Quantité]]></text>
+			</staticText>
+		</band>
+	</columnHeader>
+	<detail>
+		<band height="22">
+			<textField>
+				<reportElement style="tableCell" x="0" y="0" width="304" height="22" uuid="8ef7f256-ebee-4055-8e88-000b12d134b5"/>
+				<textFieldExpression><![CDATA[$F{libelleGadget}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="tableCell" x="304" y="0" width="251" height="22" uuid="bf11f72f-c0f9-4c99-9e6f-2689208db771"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA[$F{quantiteDistribuee}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<summary>
+		<!-- La ligne TOTAL est désormais rattachée directement au tableau (mêmes bordures, mêmes largeurs de colonnes) -->
+		<band height="140">
+			<staticText>
+				<reportElement style="tableTotal" x="0" y="0" width="304" height="22" uuid="fd371078-069a-434b-b23b-a9c91fdfc8df"/>
+				<textElement>
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[TOTAL]]></text>
+			</staticText>
+			<textField>
+				<reportElement style="tableTotal" x="304" y="0" width="251" height="22" uuid="7e645d10-55a8-4787-908b-1a875ba77fae"/>
+				<textElement textAlignment="Center">
+					<font isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{totalGadgets}]]></textFieldExpression>
+			</textField>
+
+			<!-- Bloc signatures redescendu à y=50 (28pt de respiration après la ligne TOTAL) -->
+			<staticText>
+				<reportElement x="0" y="50" width="250" height="15" uuid="12a36c09-792b-4a1a-8f8d-0a60d83cbd52"/>
+				<textElement>
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[RESPONSABLE (CHEF SERVICE)]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="305" y="50" width="250" height="15" uuid="4a35e7c0-04e7-4483-9c49-345de2a36743"/>
+				<textElement>
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[DESTINATAIRE]]></text>
+			</staticText>
+			<line>
+				<reportElement x="0" y="65" width="250" height="1" uuid="8380f7bf-401c-4133-8cbe-d68e6cb46b1a"/>
+			</line>
+			<line>
+				<reportElement x="305" y="65" width="250" height="1" uuid="fcf7dc65-a2df-4263-9000-dfa15eee4ce1"/>
+			</line>
+			<!-- Chaque ligne = étiquette à largeur fixe (125pt) + valeur qui démarre toujours au même x (128pt après
+			     le début de colonne). C'est ce qui aligne "Nom et prénom", "Date" et "Signature" verticalement,
+			     et de la même façon entre le bloc Responsable (x=0) et le bloc Destinataire (x=305). -->
+
+			<!-- Nom et prénom -->
+			<staticText>
+				<reportElement x="0" y="70" width="125" height="15" uuid="e1a2b3c4-0001-4001-8001-000000000001"/>
+				<text><![CDATA[Nom et prénom :]]></text>
+			</staticText>
+			<textField isStretchWithOverflow="true">
+				<reportElement x="128" y="70" width="122" height="15" uuid="f9fa1f3b-1e2e-43c3-9414-5fed99426a5a"/>
+				<textFieldExpression><![CDATA[($P{responsable} == null || $P{responsable}.trim().isEmpty()) ? "_____________________" : $P{responsable}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="305" y="70" width="125" height="15" uuid="e1a2b3c4-0002-4002-8002-000000000002"/>
+				<text><![CDATA[Nom et prénom :]]></text>
+			</staticText>
+			<textField isStretchWithOverflow="true">
+				<reportElement x="433" y="70" width="122" height="15" uuid="2a33302b-37fd-46b7-9b45-35bb840c34b7"/>
+				<textFieldExpression><![CDATA[($P{destinataire} == null || $P{destinataire}.trim().isEmpty()) ? "_____________________" : $P{destinataire}]]></textFieldExpression>
+			</textField>
+
+			<!-- Date -->
+			<staticText>
+				<reportElement x="0" y="90" width="125" height="15" uuid="e1a2b3c4-0003-4003-8003-000000000003"/>
+				<text><![CDATA[Date d'envoi :]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="128" y="90" width="122" height="15" uuid="6622610a-e1a7-4375-a758-9e477050c175"/>
+				<textFieldExpression><![CDATA[new java.text.SimpleDateFormat("dd/MM/yyyy").format($P{dateEnvoi})]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="305" y="90" width="125" height="15" uuid="e1a2b3c4-0004-4004-8004-000000000004"/>
+				<text><![CDATA[Date de réception :]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="433" y="90" width="122" height="15" uuid="59cbcbc4-05ac-48cb-be80-c82941eb4feb"/>
+				<text><![CDATA[_____________________]]></text>
+			</staticText>
+
+			<!-- Signature -->
+			<staticText>
+				<reportElement x="0" y="110" width="125" height="15" uuid="944f29d9-3ff9-4685-a052-8582dd9b1239"/>
+				<text><![CDATA[Signature :]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="128" y="110" width="122" height="15" uuid="e1a2b3c4-0005-4005-8005-000000000005"/>
+				<text><![CDATA[_____________________]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="305" y="110" width="125" height="15" uuid="e1a2b3c4-0006-4006-8006-000000000006"/>
+				<text><![CDATA[Signature :]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="433" y="110" width="122" height="15" uuid="dace9b9a-6f2b-4a1b-b813-713d4b7ed441"/>
+				<text><![CDATA[_____________________]]></text>
+			</staticText>
+		</band>
+	</summary>
+</jasperReport>

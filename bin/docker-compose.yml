@@ -1,0 +1,19 @@
+version: '3.8'
+
+# Pour le moment, seule la base PostgreSQL est nécessaire (cf. consigne 1 :
+# Keycloak sera ajouté dans un docker-compose dédié à l'étape "authentification").
+services:
+  postgres:
+    image: postgres:16
+    container_name: postgres_gadgets
+    environment:
+      - POSTGRES_DB=gadgets_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - gadgets_pgdata:/var/lib/postgresql/data
+
+volumes:
+  gadgets_pgdata:
