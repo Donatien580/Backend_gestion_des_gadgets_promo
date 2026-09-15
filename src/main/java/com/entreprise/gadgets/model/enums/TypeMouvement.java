@@ -9,5 +9,6 @@ public enum TypeMouvement {
     ENTREE,
     SORTIE,
     RETOUR,
-    INVENTAIRE
+    INVENTAIRE,
+    CORRECTION
 }

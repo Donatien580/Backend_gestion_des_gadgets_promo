@@ -1,7 +1,10 @@
 package com.entreprise.gadgets.service.impl;
 
+import com.entreprise.gadgets.dto.request.AffectationDemandeRequest;
+
 import com.entreprise.gadgets.dto.request.DemandeRequest;
-import com.entreprise.gadgets.dto.request.LigneDemandeRequest;
+import com.entreprise.gadgets.dto.request.RefusDemandeRequest;
+import com.entreprise.gadgets.dto.response.AgentResume;
 import com.entreprise.gadgets.dto.response.DemandeResponse;
 import com.entreprise.gadgets.dto.response.PageResponse;
 import com.entreprise.gadgets.exception.BusinessException;
@@ -9,11 +12,13 @@ import com.entreprise.gadgets.exception.RessourceIntrouvableException;
 import com.entreprise.gadgets.mapper.DemandeMapper;
 import com.entreprise.gadgets.model.*;
 import com.entreprise.gadgets.model.enums.EtatDemande;
+import com.entreprise.gadgets.model.enums.RoleType;
 import com.entreprise.gadgets.model.enums.TypeDemande;
 import com.entreprise.gadgets.repository.*;
 import com.entreprise.gadgets.service.DemandeService;
 import com.entreprise.gadgets.service.FichierStockageService;
-import com.entreprise.gadgets.service.StockService;
+import com.entreprise.gadgets.service.UtilisateurCourantService;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -35,13 +40,14 @@ import java.util.List;
 @Slf4j
 public class DemandeServiceImpl implements DemandeService {
 
+	/** Rôles pouvant se voir affecter une demande par le Chef Département. */
+    private static final List<RoleType> ROLES_AFFECTABLES = List.of(RoleType.CHEF_SERVICE);
+
     private final DemandeRepository demandeRepository;
-    private final GadgetRepository gadgetRepository;
     private final UtilisateurRepository utilisateurRepository;
     private final PieceJustificativeRepository pieceJustificativeRepository;
-    private final ServiceDemandeurRepository serviceRepository;
-    private final StockService stockService;
     private final FichierStockageService fichierStockageService;
+    private final UtilisateurCourantService utilisateurCourantService;
     private final DemandeMapper demandeMapper;
 
     // ---------- LISTER ----------
@@ -49,11 +55,10 @@ public class DemandeServiceImpl implements DemandeService {
     @Transactional(readOnly = true)
     public PageResponse<DemandeResponse> lister(EtatDemande etat, String recherche, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("dateDemande").descending());
-        Page<Demande> demandesPage;
-
         boolean hasEtat = etat != null;
         boolean hasRecherche = recherche != null && !recherche.isBlank();
 
+        Page<Demande> demandesPage;
         if (hasEtat && hasRecherche) {
             demandesPage = demandeRepository.findByEtatAndRecherche(etat, recherche, pageable);
         } else if (hasEtat) {
@@ -64,15 +69,14 @@ public class DemandeServiceImpl implements DemandeService {
             demandesPage = demandeRepository.findAll(pageable);
         }
 
-        Page<DemandeResponse> responsePage = demandesPage.map(demandeMapper::toResponse);
-        return PageResponse.from(responsePage);
+        return PageResponse.from(demandesPage.map(demandeMapper::toResponse));
     }
+
     // ---------- OBTENIR ----------
     @Override
     @Transactional(readOnly = true)
     public DemandeResponse obtenir(Integer id) {
-        Demande demande = getDemande(id);
-        return demandeMapper.toResponse(demande);
+        return demandeMapper.toResponse(trouverParId(id));
     }
 
     // ---------- CRÉER ----------
@@ -80,48 +84,31 @@ public class DemandeServiceImpl implements DemandeService {
     public DemandeResponse creer(DemandeRequest requete) {
         validerRequete(requete);
 
-        Demande demande = new Demande();
-        demande.setNumeroDemande(genererNumero());
-        demande.setObjet(requete.objet());
-        demande.setTypeDemande(requete.typeDemande());
-        demande.setDateSouhaitee(requete.dateSouhaitee());
-        demande.setObservations(requete.observations());
-        demande.setEtat(EtatDemande.EN_ATTENTE);
-        demande.setAgentSaisie(getAgentSaisieTemporaire());
+        Utilisateur agentSaisie = utilisateurCourantService.obtenirUtilisateurConnecte();
 
-        // Champs spécifiques
-        if (requete.typeDemande() == TypeDemande.INTERNE) {
-            Services service = serviceRepository.findById(requete.idService())
-                    .orElseThrow(() -> new RessourceIntrouvableException("Service introuvable"));
-            demande.setService(service);
-            demande.setNombrePersonnelsImpactes(requete.nombrePersonnelsImpactes());
-        } else {
-            demande.setStructure(requete.structure());
-            demande.setRepresentant(requete.representant());
-            demande.setTelephone(requete.telephone());
-        }
+        Demande demande = Demande.builder()
+            .numeroDemande(genererNumero())
+            .objet(requete.objet())
+            .typeDemande(requete.typeDemande())
+            .dateSouhaitee(requete.dateSouhaitee())
+            .observations(requete.observations())
+            .etat(EtatDemande.EN_ATTENTE)
+            .agentSaisie(agentSaisie)
+            .build();
 
-        // Lignes
-        for (LigneDemandeRequest lr : requete.lignes()) {
-            Gadget gadget = gadgetRepository.findById(lr.idGadget())
-                    .orElseThrow(() -> new RessourceIntrouvableException("Gadget introuvable"));
-            LigneDemande ligne = LigneDemande.builder()
-                    .gadget(gadget)
-                    .quantiteDemandee(lr.quantiteDemandee())
-                    .build();
-            demande.ajouterLigne(ligne);
-        }
+        appliquerChampsDemandeur(demande, requete);
 
-        Demande saved = demandeRepository.save(demande);
-        return demandeMapper.toResponse(saved);
+        return demandeMapper.toResponse(demandeRepository.save(demande));
     }
 
-    // ---------- MODIFIER ----------
+    // ---------- MODIFIER (erreur de saisie) ----------
     @Override
     public DemandeResponse modifier(Integer id, DemandeRequest requete) {
-        Demande demande = getDemande(id);
+        Demande demande = trouverParId(id);
         if (demande.getEtat() != EtatDemande.EN_ATTENTE) {
-            throw new BusinessException("La demande ne peut plus être modifiée (état actuel : " + demande.getEtat() + ")");
+            throw new BusinessException(
+                "La demande ne peut plus être modifiée (état actuel : " + demande.getEtat()
+                    + "). Seule une demande en attente peut être corrigée.");
         }
 
         validerRequete(requete);
@@ -130,136 +117,96 @@ public class DemandeServiceImpl implements DemandeService {
         demande.setTypeDemande(requete.typeDemande());
         demande.setDateSouhaitee(requete.dateSouhaitee());
         demande.setObservations(requete.observations());
+        appliquerChampsDemandeur(demande, requete);
 
-        if (requete.typeDemande() == TypeDemande.INTERNE) {
-            Services service = serviceRepository.findById(requete.idService())
-                    .orElseThrow(() -> new RessourceIntrouvableException("Service introuvable"));
-            demande.setService(service);
-            demande.setNombrePersonnelsImpactes(requete.nombrePersonnelsImpactes());
-            // Nettoyer champs externes
-            demande.setStructure(null);
-            demande.setRepresentant(null);
-            demande.setTelephone(null);
-        } else {
-            demande.setStructure(requete.structure());
-            demande.setRepresentant(requete.representant());
-            demande.setTelephone(requete.telephone());
-            // Nettoyer champs internes
-            demande.setService(null);
-            demande.setNombrePersonnelsImpactes(null);
-        }
-
-        // Remplacement des lignes
-        demande.getLignes().clear();
-        for (LigneDemandeRequest lr : requete.lignes()) {
-            Gadget gadget = gadgetRepository.findById(lr.idGadget())
-                    .orElseThrow(() -> new RessourceIntrouvableException("Gadget introuvable"));
-            LigneDemande ligne = LigneDemande.builder()
-                    .gadget(gadget)
-                    .quantiteDemandee(lr.quantiteDemandee())
-                    .build();
-            demande.ajouterLigne(ligne);
-        }
-
-        Demande saved = demandeRepository.save(demande);
-        return demandeMapper.toResponse(saved);
-    }
-
-    // ---------- VALIDER ----------
-    @Override
-    public DemandeResponse valider(Integer id) {
-        Demande demande = getDemande(id);
-        if (demande.getEtat() != EtatDemande.EN_ATTENTE) {
-            throw new BusinessException("La demande ne peut pas être validée (état : " + demande.getEtat() + ")");
-        }
-        demande.setEtat(EtatDemande.VALIDEE_CHEF_DEPARTEMENT);
-        demande.setDateValidation(LocalDateTime.now());
         return demandeMapper.toResponse(demandeRepository.save(demande));
     }
 
-    // ---------- REFUSER ----------
+    // ---------- VALIDER (Chef Département) ----------
     @Override
-    public DemandeResponse refuser(Integer id, String motif) {
-        Demande demande = getDemande(id);
-        if (demande.getEtat() == EtatDemande.TRAITEE || demande.getEtat() == EtatDemande.REFUSEE) {
-            throw new BusinessException("La demande est déjà clôturée");
+    public DemandeResponse valider(Integer id) {
+        verifierRoleValidation("valider");
+
+        Demande demande = trouverParId(id);
+        if (demande.getEtat() != EtatDemande.EN_ATTENTE) {
+            throw new BusinessException("La demande ne peut pas être validée (état actuel : " + demande.getEtat() + ").");
         }
+
+        demande.setEtat(EtatDemande.VALIDEE_CHEF_DEPARTEMENT);
+        demande.setDateValidation(LocalDateTime.now());
+
+        return demandeMapper.toResponse(demandeRepository.save(demande));
+    }
+
+    // ---------- REFUSER (Chef Département, motif obligatoire) ----------
+    @Override
+    public DemandeResponse refuser(Integer id, RefusDemandeRequest requete) {
+        verifierRoleValidation("refuser");
+
+        Demande demande = trouverParId(id);
+        if (demande.getEtat() == EtatDemande.TRAITEE
+            || demande.getEtat() == EtatDemande.REFUSEE
+            || demande.getEtat() == EtatDemande.ANNULEE) {
+            throw new BusinessException("La demande est déjà clôturée (état actuel : " + demande.getEtat() + ").");
+        }
+
         demande.setEtat(EtatDemande.REFUSEE);
-        demande.setMotifRefus(motif);
+        demande.setMotifRefus(requete.motifRefus());
+
         return demandeMapper.toResponse(demandeRepository.save(demande));
     }
 
     // ---------- ANNULER ----------
     @Override
     public DemandeResponse annuler(Integer id) {
-        Demande demande = getDemande(id);
+        Demande demande = trouverParId(id);
+        if (demande.getEtat() != EtatDemande.EN_ATTENTE) {
+            throw new BusinessException("Seule une demande en attente peut être annulée.");
+        }
         demande.setEtat(EtatDemande.ANNULEE);
         return demandeMapper.toResponse(demandeRepository.save(demande));
     }
 
-    // ---------- AFFECTER ----------
-    /*@Override
-    public DemandeResponse affecter(Integer id, Integer idAgent) {
-        Demande demande = getDemande(id);
+    // ---------- AFFECTER (Chef Département) ----------
+    @Override
+    public DemandeResponse affecter(Integer id, AffectationDemandeRequest requete) {
+    	   verifierRoleAffectation();
+
+        Demande demande = trouverParId(id);
         if (demande.getEtat() != EtatDemande.VALIDEE_CHEF_DEPARTEMENT) {
-            throw new BusinessException("La demande doit être validée par le Chef Département avant affectation");
+            throw new BusinessException(
+                "La demande doit être validée par le Chef Département avant d'être affectée (état actuel : "
+                    + demande.getEtat() + ").");
         }
-        Utilisateur agent = utilisateurRepository.findById(idAgent)
-                .orElseThrow(() -> new RessourceIntrouvableException("Agent introuvable"));
+
+        Utilisateur agent = utilisateurRepository.findById(requete.idAgentAffecte())
+            .orElseThrow(() -> RessourceIntrouvableException.pour("Utilisateur", requete.idAgentAffecte()));
+
+        if (!ROLES_AFFECTABLES.contains(agent.getRole().getNom())) {
+            throw new BusinessException(
+                "\"" + agent.getNom() + " " + agent.getPrenom() + "\" n'a pas un rôle pouvant être affecté à une demande.");
+        }
+
         demande.setAgentAffecte(agent);
         demande.setEtat(EtatDemande.AFFECTEE);
-        return demandeMapper.toResponse(demandeRepository.save(demande));
-    }*/
-    @Override
-    public DemandeResponse affecter(Integer id) {
-        Demande demande = getDemande(id);
-        if (demande.getEtat() != EtatDemande.EN_ATTENTE
-                && demande.getEtat() != EtatDemande.VALIDEE_CHEF_DEPARTEMENT) {
-            throw new BusinessException("La demande doit être en attente ou validée pour être affectée");
-        }
-
-        // Passer à AFFECTEE
-        demande.setEtat(EtatDemande.AFFECTEE);
-
-        Demande saved = demandeRepository.save(demande);
-        return demandeMapper.toResponse(saved);
-    }
-
-    // ---------- TRAITER ----------
-    @Override
-    public DemandeResponse traiter(Integer id, String decision, String motifRefus) {
-        Demande demande = getDemande(id);
-        if (demande.getEtat() != EtatDemande.AFFECTEE) {
-            throw new BusinessException("La demande doit être affectée avant traitement");
-        }
-
-        if ("ACCEPTER".equalsIgnoreCase(decision)) {
-            // Vérification du stock (sans décrémenter)
-            for (LigneDemande ligne : demande.getLignes()) {
-                Gadget gadget = ligne.getGadget();
-                if (gadget.getQuantiteDisponible() < ligne.getQuantiteDemandee()) {
-                    throw new BusinessException("Stock insuffisant pour le gadget : " + gadget.getLibelle());
-                }
-            }
-            // Marquer la demande comme traitée sans décrémenter le stock
-            demande.setEtat(EtatDemande.TRAITEE);
-            demande.setDateValidation(LocalDateTime.now());
-        } else if ("REFUSER".equalsIgnoreCase(decision)) {
-            demande.setEtat(EtatDemande.REFUSEE);
-            demande.setMotifRefus(motifRefus);
-        } else {
-            throw new BusinessException("Décision invalide");
-        }
 
         return demandeMapper.toResponse(demandeRepository.save(demande));
     }
 
-    // ---------- UPLOAD PIÈCE ----------
+    @Override
+    @Transactional(readOnly = true)
+    public List<AgentResume> listerAgentsAffectables() {
+        return utilisateurRepository.findByRole_NomInAndActifTrueOrderByNomAsc(ROLES_AFFECTABLES).stream()
+            .map(u -> new AgentResume(u.getIdUtilisateur(), u.getNom(), u.getPrenom()))
+            .toList();
+    }
+
+    // ---------- UPLOAD PIÈCE JUSTIFICATIVE ----------
     @Override
     public DemandeResponse uploaderPieceJustificative(Integer idDemande, MultipartFile fichier) {
-        Demande demande = getDemande(idDemande);
+        Demande demande = trouverParId(idDemande);
         if (demande.getEtat() != EtatDemande.EN_ATTENTE) {
-            throw new BusinessException("Impossible de modifier la pièce justificative après validation");
+            throw new BusinessException("Impossible de modifier la pièce justificative après validation.");
         }
 
         String cheminRelatif = fichierStockageService.enregistrer(fichier, "demandes");
@@ -267,10 +214,8 @@ public class DemandeServiceImpl implements DemandeService {
         PieceJustificative piece = demande.getPieceJustificative();
         if (piece == null) {
             piece = PieceJustificative.builder().demande(demande).build();
-        } else {
-            if (piece.getCheminFichier() != null) {
-                fichierStockageService.supprimer(piece.getCheminFichier());
-            }
+        } else if (piece.getCheminFichier() != null) {
+            fichierStockageService.supprimer(piece.getCheminFichier());
         }
 
         piece.setNomFichier(fichier.getOriginalFilename());
@@ -280,34 +225,62 @@ public class DemandeServiceImpl implements DemandeService {
 
         demande.setPieceJustificative(piece);
         pieceJustificativeRepository.save(piece);
-        demandeRepository.save(demande);
 
-        return demandeMapper.toResponse(demande);
+        return demandeMapper.toResponse(demandeRepository.save(demande));
     }
 
     // ================== MÉTHODES PRIVÉES ==================
 
-    private Demande getDemande(Integer id) {
-        return demandeRepository.findById(id)
-                .orElseThrow(() -> new RessourceIntrouvableException("Demande introuvable"));
+    private void appliquerChampsDemandeur(Demande demande, DemandeRequest requete) {
+        demande.setNomDemandeur(requete.nomDemandeur());
+        demande.setPrenomDemandeur(requete.prenomDemandeur());
+        demande.setTelephoneDemandeur(requete.telephoneDemandeur());
+
+        if (requete.typeDemande() == TypeDemande.INTERNE) {
+            demande.setMatriculeDemandeur(requete.matriculeDemandeur());
+            demande.setServiceDemandeur(requete.serviceDemandeur());
+            demande.setStructureDemandeur(null);
+        } else {
+            demande.setStructureDemandeur(requete.structureDemandeur());
+            demande.setMatriculeDemandeur(null);
+            demande.setServiceDemandeur(null);
+        }
     }
 
     private void validerRequete(DemandeRequest requete) {
         if (requete.typeDemande() == TypeDemande.INTERNE) {
-            if (requete.idService() == null) {
-                throw new BusinessException("Le service est obligatoire pour une demande interne.");
+            if (requete.matriculeDemandeur() == null || requete.matriculeDemandeur().isBlank()) {
+                throw new BusinessException("Le matricule du demandeur est obligatoire pour une demande interne.");
             }
-            if (requete.nombrePersonnelsImpactes() == null || requete.nombrePersonnelsImpactes() <= 0) {
-                throw new BusinessException("Le nombre de personnels impactés est obligatoire et doit être positif.");
+            if (requete.serviceDemandeur() == null || requete.serviceDemandeur().isBlank()) {
+                throw new BusinessException("Le service du demandeur est obligatoire pour une demande interne.");
             }
         } else {
-            if (requete.structure() == null || requete.structure().isBlank()) {
+            if (requete.structureDemandeur() == null || requete.structureDemandeur().isBlank()) {
                 throw new BusinessException("La structure est obligatoire pour une demande externe.");
             }
-            if (requete.representant() == null || requete.representant().isBlank()) {
-                throw new BusinessException("Le représentant est obligatoire.");
-            }
         }
+    }
+
+    private void verifierRoleValidation(String action) {
+        Utilisateur utilisateur = utilisateurCourantService.obtenirUtilisateurConnecte();
+        RoleType role = utilisateur.getRole().getNom();
+        if (role != RoleType.CHEF_DEPARTEMENT && role != RoleType.ADMIN) {
+            throw new BusinessException("Seul le Chef Département ou le Chef Service peut " + action + " une demande.");
+        }
+    }
+    
+    private void verifierRoleAffectation() {
+        Utilisateur utilisateur = utilisateurCourantService.obtenirUtilisateurConnecte();
+        RoleType role = utilisateur.getRole().getNom();
+        if (role != RoleType.CHEF_DEPARTEMENT && role != RoleType.ADMIN) {
+            throw new BusinessException("Seul le Chef Département peut affecter une demande.");
+        }
+    }
+
+    private Demande trouverParId(Integer id) {
+        return demandeRepository.findById(id)
+            .orElseThrow(() -> RessourceIntrouvableException.pour("Demande", id));
     }
 
     private String genererNumero() {
@@ -320,10 +293,30 @@ public class DemandeServiceImpl implements DemandeService {
         } while (demandeRepository.existsByNumeroDemande(numero));
         return numero;
     }
+    
+    	private static final int LIMITE_SUGGESTIONS = 8;
 
-    private Utilisateur getAgentSaisieTemporaire() {
-        // TODO : remplacer par l'utilisateur connecté via Spring Security
-        return utilisateurRepository.findById(1)
-                .orElseThrow(() -> new RessourceIntrouvableException("Utilisateur par défaut introuvable"));
-    }
+    	@Override
+    	@Transactional(readOnly = true)
+    	public List<String> suggererNoms(String prefixe) {
+    	    return demandeRepository.suggererNoms(prefixe, PageRequest.of(0, LIMITE_SUGGESTIONS));
+    	}
+
+    	@Override
+    	@Transactional(readOnly = true)
+    	public List<String> suggererPrenoms(String prefixe) {
+    	    return demandeRepository.suggererPrenoms(prefixe, PageRequest.of(0, LIMITE_SUGGESTIONS));
+    	}
+
+    	@Override
+    	@Transactional(readOnly = true)
+    	public List<String> suggererServices(String prefixe) {
+    	    return demandeRepository.suggererServices(prefixe, PageRequest.of(0, LIMITE_SUGGESTIONS));
+    	}
+
+    	@Override
+    	@Transactional(readOnly = true)
+    	public List<String> suggererStructures(String prefixe) {
+    	    return demandeRepository.suggererStructures(prefixe, PageRequest.of(0, LIMITE_SUGGESTIONS));
+    	}
 }

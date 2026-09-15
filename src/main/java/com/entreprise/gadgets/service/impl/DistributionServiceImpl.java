@@ -1,6 +1,7 @@
 package com.entreprise.gadgets.service.impl;
 
 import com.entreprise.gadgets.dto.request.DistributionRequest;
+import com.entreprise.gadgets.dto.request.LigneDistributionRequest;
 import com.entreprise.gadgets.dto.response.DistributionResponse;
 import com.entreprise.gadgets.dto.response.PageResponse;
 import com.entreprise.gadgets.exception.BusinessException;
@@ -14,10 +15,10 @@ import com.entreprise.gadgets.model.enums.TypeDistribution;
 import com.entreprise.gadgets.repository.DemandeRepository;
 import com.entreprise.gadgets.repository.DistributionRepository;
 import com.entreprise.gadgets.repository.GadgetRepository;
-import com.entreprise.gadgets.repository.UtilisateurRepository;
 import com.entreprise.gadgets.service.DistributionService;
 import com.entreprise.gadgets.service.PdfGeneratorService;
 import com.entreprise.gadgets.service.StockService;
+import com.entreprise.gadgets.service.UtilisateurCourantService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -37,111 +38,93 @@ import java.util.List;
 @Transactional
 public class DistributionServiceImpl implements DistributionService {
 
+    private static final int LIMITE_SUGGESTIONS = 8;
+
     private final DistributionRepository distributionRepository;
     private final DemandeRepository demandeRepository;
     private final GadgetRepository gadgetRepository;
-    private final UtilisateurRepository utilisateurRepository;
     private final DistributionMapper distributionMapper;
     private final PdfGeneratorService pdfGeneratorService;
     private final StockService stockService;
+    private final UtilisateurCourantService utilisateurCourantService;
 
     @Override
     @Transactional(readOnly = true)
     public PageResponse<DistributionResponse> lister(int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("dateDistribution").descending());
         Page<Distribution> distributionsPage = distributionRepository.findAll(pageable);
-        Page<DistributionResponse> responsePage = distributionsPage.map(distributionMapper::toResponse);
-        return PageResponse.from(responsePage);
+        return PageResponse.from(distributionsPage.map(distributionMapper::toResponse));
     }
 
     @Override
     @Transactional(readOnly = true)
     public DistributionResponse obtenir(Integer id) {
-        Distribution distribution = getDistribution(id);
-        return distributionMapper.toResponse(distribution);
-    }
-    
-    @Override
-    public DistributionResponse executer(Integer id) {
-        Distribution distribution = getDistribution(id);
-        if (distribution.getEtat() != EtatDistribution.EN_ATTENTE) {
-            throw new BusinessException("La distribution n'est pas en attente");
-        }
-
-        Demande demande = distribution.getDemande();
-        Utilisateur utilisateur = getUtilisateurTemporaire();
-
-        for (LigneDistribution ligne : distribution.getLignes()) {
-            // 1. Décrémenter le stock
-            stockService.enregistrerSortie(
-                ligne.getGadget(),
-                ligne.getQuantiteDistribuee(),
-                utilisateur,                    
-                "Distribution " + distribution.getNumeroBordereau(),
-                distribution.getIdDistribution(),
-                "DISTRIBUTION"
-            );
-
-            // 2. Mettre à jour la ligne de demande
-            LigneDemande ligneDemande = demande.getLignes().stream()
-                    .filter(l -> l.getGadget().getIdGadget().equals(ligne.getGadget().getIdGadget()))
-                    .findFirst()
-                    .orElse(null);
-            if (ligneDemande != null) {
-                ligneDemande.setQuantiteAccordee(ligne.getQuantiteDistribuee());
-            }
-        }
-
-        distribution.setEtat(EtatDistribution.EXECUTEE);
-        distribution.setDateDistribution(LocalDateTime.now());
-        Distribution saved = distributionRepository.save(distribution);
-        return distributionMapper.toResponse(saved);
-    }
-
-    private Utilisateur getUtilisateurTemporaire() {
-        // TODO : remplacer par l'utilisateur connecté
-        return utilisateurRepository.findById(1)
-                .orElseThrow(() -> new RessourceIntrouvableException("Utilisateur par défaut introuvable"));
+        return distributionMapper.toResponse(getDistribution(id));
     }
 
     @Override
     public DistributionResponse creer(DistributionRequest requete) {
-        Demande demande = demandeRepository.findById(requete.idDemande())
-                .orElseThrow(() -> new RessourceIntrouvableException("Demande introuvable"));
+        Demande demande = null;
+        TypeDistribution type;
 
-        // Vérifier que la demande est à l'état TRAITEE (acceptée par Chef Service)
-        if (demande.getEtat() != EtatDemande.VALIDEE_CHEF_DEPARTEMENT
-                && demande.getEtat() != EtatDemande.TRAITEE) {
-            throw new BusinessException(
-                "La demande doit être validée (VALIDEE_CHEF_DEPARTEMENT) ou déjà traitée (TRAITEE)"
-            );
+        if (requete.idDemande() != null) {
+            demande = demandeRepository.findById(requete.idDemande())
+                    .orElseThrow(() -> RessourceIntrouvableException.pour("Demande", requete.idDemande()));
+
+            if (demande.getEtat() != EtatDemande.AFFECTEE) {
+                throw new BusinessException(
+                    "La demande doit avoir été affectée par le Chef Département avant d'être distribuée (état actuel : "
+                        + demande.getEtat() + ").");
+            }
+            if (distributionRepository.findByDemande_IdDemande(demande.getIdDemande()).isPresent()) {
+                throw new BusinessException("Une distribution existe déjà pour cette demande.");
+            }
+            type = demande.getTypeDemande() == TypeDemande.INTERNE ? TypeDistribution.INTERNE : TypeDistribution.EXTERNE;
+        } else {
+            // Dotation : aucune demande associée, le type doit être précisé explicitement
+            if (requete.typeDistribution() == null) {
+                throw new BusinessException("Le type de distribution est obligatoire pour une dotation.");
+            }
+            type = requete.typeDistribution();
         }
 
-        // Vérifier qu'il n'existe pas déjà une distribution pour cette demande
-        if (distributionRepository.findByDemande_IdDemande(demande.getIdDemande()).isPresent()) {
-            throw new BusinessException("Une distribution existe déjà pour cette demande");
+        if (type == TypeDistribution.INTERNE) {
+            if (requete.nomReceptionnaire() == null || requete.nomReceptionnaire().isBlank()) {
+                throw new BusinessException("Le nom du réceptionnaire est obligatoire pour une distribution interne.");
+            }
+        } else if (requete.destinataire() == null || requete.destinataire().isBlank()) {
+            throw new BusinessException("Le destinataire est obligatoire pour une distribution externe.");
         }
 
-        Distribution distribution = new Distribution();
-        distribution.setNumeroBordereau(genererNumero());
-        distribution.setDemande(demande);
-        distribution.setTypeDistribution(demande.getTypeDemande() == TypeDemande.INTERNE ? TypeDistribution.INTERNE : TypeDistribution.EXTERNE);
+        Distribution distribution = Distribution.builder()
+            .numeroBordereau(genererNumero())
+            .demande(demande)
+            .estDotation(demande == null)
+            .typeDistribution(type)
+            .motif(requete.motif() != null ? requete.motif() : (demande != null ? demande.getObjet() : null))
+            .destinataire(requete.destinataire())
+            .matriculeReceptionnaire(requete.matriculeReceptionnaire())
+            .nomReceptionnaire(requete.nomReceptionnaire())
+            .prenomReceptionnaire(requete.prenomReceptionnaire())
+            .serviceReceptionnaire(requete.serviceReceptionnaire())
+            .nombrePersonnes(requete.nombrePersonnes())
+            .dateDistribution(requete.dateDistribution() != null ? requete.dateDistribution() : LocalDateTime.now())
+            .etat(EtatDistribution.EN_ATTENTE)
+            .build();
 
-        // Renseigner automatiquement le destinataire selon le type
-        String destinataire = construireDestinataire(demande);
-        distribution.setDestinataire(requete.destinataire() != null ? requete.destinataire() : destinataire);
+        for (LigneDistributionRequest ligneRequete : requete.lignes()) {
+            Gadget gadget = gadgetRepository.findById(ligneRequete.idGadget())
+                    .orElseThrow(() -> RessourceIntrouvableException.pour("Gadget", ligneRequete.idGadget()));
 
-        distribution.setMotif(requete.motif() != null ? requete.motif() : demande.getObjet());
-        distribution.setDateDistribution(requete.dateDistribution() != null ? requete.dateDistribution() : LocalDateTime.now());
-        distribution.setEtat(EtatDistribution.EN_ATTENTE);
+            if (ligneRequete.quantiteDistribuee() > gadget.getQuantiteDisponible()) {
+                throw new BusinessException(
+                    "Stock insuffisant pour \"" + gadget.getLibelle() + "\" (disponible : "
+                        + gadget.getQuantiteDisponible() + ", demandé : " + ligneRequete.quantiteDistribuee() + ").");
+            }
 
-        // Copier les lignes de la demande (quantité accordée = demandée si acceptée)
-        for (LigneDemande ligneDemande : demande.getLignes()) {
-            int quantite = (ligneDemande.getQuantiteAccordee() != null) ? ligneDemande.getQuantiteAccordee() : ligneDemande.getQuantiteDemandee();
-            Gadget gadget = ligneDemande.getGadget();
             LigneDistribution ligne = LigneDistribution.builder()
                     .gadget(gadget)
-                    .quantiteDistribuee(quantite)
+                    .quantiteDistribuee(ligneRequete.quantiteDistribuee())
                     .build();
             distribution.ajouterLigne(ligne);
         }
@@ -149,8 +132,40 @@ public class DistributionServiceImpl implements DistributionService {
         Distribution saved = distributionRepository.save(distribution);
         return distributionMapper.toResponse(saved);
     }
-    
-   
+
+    @Override
+    public DistributionResponse executer(Integer id) {
+        Distribution distribution = getDistribution(id);
+        if (distribution.getEtat() != EtatDistribution.EN_ATTENTE) {
+            throw new BusinessException("La distribution n'est pas en attente (état actuel : " + distribution.getEtat() + ").");
+        }
+
+        Utilisateur utilisateur = utilisateurCourantService.obtenirUtilisateurConnecte();
+
+        for (LigneDistribution ligne : distribution.getLignes()) {
+            stockService.enregistrerSortie(
+                ligne.getGadget(),
+                ligne.getQuantiteDistribuee(),
+                utilisateur,
+                "Distribution " + distribution.getNumeroBordereau(),
+                distribution.getIdDistribution(),
+                "DISTRIBUTION"
+            );
+        }
+
+        distribution.setEtat(EtatDistribution.EXECUTEE);
+        distribution.setDateDistribution(LocalDateTime.now());
+
+        // La demande associée (s'il y en a une) est maintenant honorée
+        Demande demande = distribution.getDemande();
+        if (demande != null) {
+            demande.setEtat(EtatDemande.TRAITEE);
+            demande.setDateTraitement(LocalDateTime.now());
+        }
+
+        Distribution saved = distributionRepository.save(distribution);
+        return distributionMapper.toResponse(saved);
+    }
 
     @Override
     @Transactional(readOnly = true)
@@ -160,23 +175,34 @@ public class DistributionServiceImpl implements DistributionService {
     }
 
     @Override
-    public DistributionResponse signer(Integer id, String signePar) {
-        Distribution distribution = getDistribution(id);
-        if (distribution.getEtat() == EtatDistribution.SIGNEE) {
-            throw new BusinessException("Le bordereau est déjà signé");
-        }
-        distribution.setSignePar(signePar);
-        distribution.setDateSignature(LocalDateTime.now());
-        distribution.setEtat(EtatDistribution.SIGNEE);
-        Distribution saved = distributionRepository.save(distribution);
-        return distributionMapper.toResponse(saved);
+    @Transactional(readOnly = true)
+    public List<String> suggererNomsReceptionnaire(String prefixe) {
+        return distributionRepository.suggererNomsReceptionnaire(prefixe, PageRequest.of(0, LIMITE_SUGGESTIONS));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<String> suggererPrenomsReceptionnaire(String prefixe) {
+        return distributionRepository.suggererPrenomsReceptionnaire(prefixe, PageRequest.of(0, LIMITE_SUGGESTIONS));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<String> suggererServicesReceptionnaire(String prefixe) {
+        return distributionRepository.suggererServicesReceptionnaire(prefixe, PageRequest.of(0, LIMITE_SUGGESTIONS));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<String> suggererDestinataires(String prefixe) {
+        return distributionRepository.suggererDestinataires(prefixe, PageRequest.of(0, LIMITE_SUGGESTIONS));
     }
 
     // ================== Méthodes privées ==================
 
     private Distribution getDistribution(Integer id) {
         return distributionRepository.findById(id)
-                .orElseThrow(() -> new RessourceIntrouvableException("Distribution introuvable"));
+                .orElseThrow(() -> RessourceIntrouvableException.pour("Distribution", id));
     }
 
     private String genererNumero() {
@@ -188,24 +214,5 @@ public class DistributionServiceImpl implements DistributionService {
             count++;
         } while (distributionRepository.existsByNumeroBordereau(numero));
         return numero;
-    }
-
-    private String construireDestinataire(Demande demande) {
-        if (demande.getTypeDemande() == TypeDemande.INTERNE) {
-            // Pour une demande interne, le destinataire est le service demandeur
-            Services service = demande.getService();
-            if (service != null) {
-                return String.format("%s - Responsable: %s (%s)",
-                        service.getLibelleService(),
-                        service.getNomResponsable(),
-                        service.getMatriculeResponsable());
-            }
-            return "Service non spécifié";
-        } else {
-            // Demande externe
-            return String.format("Structure: %s - Représentant: %s",
-                    demande.getStructure(),
-                    demande.getRepresentant());
-        }
     }
 }

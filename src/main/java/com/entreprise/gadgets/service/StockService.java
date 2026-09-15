@@ -1,6 +1,7 @@
 package com.entreprise.gadgets.service;
 
 import com.entreprise.gadgets.model.Gadget;
+
 import com.entreprise.gadgets.model.Utilisateur;
 
 /**
@@ -28,4 +29,12 @@ public interface StockService {
      */
     void enregistrerAjustementInventaire(Gadget gadget, int ecart, Utilisateur utilisateur, String motif,
                                           Integer idReference, String typeReference);
+    
+    /**
+     * Rectification d'une erreur de saisie (ex. approvisionnement).
+     * @param delta nouvelle quantité conforme - ancienne quantité conforme
+     *              (positif = stock à la hausse, négatif = stock à la baisse).
+     */
+    void enregistrerCorrection(Gadget gadget, int delta, Utilisateur utilisateur, String motif,
+                                Integer idReference, String typeReference);
 }

@@ -5,6 +5,12 @@ spring:
   profiles:
     active: dev
 
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8081/realms/gestock-gadgets}
+
   jpa:
     open-in-view: false
     hibernate:
@@ -69,6 +75,7 @@ logging:
 app:
   gadgets:
     seuil-alerte-defaut: 50
+    marge-avertissement-pourcentage: 20
   cors:
     allowed-origins: http://localhost:4200
   uploads:

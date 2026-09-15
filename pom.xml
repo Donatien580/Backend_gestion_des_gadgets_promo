@@ -65,13 +65,11 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
-        <!-- Sera activé lors de l'intégration Keycloak (étape finale, cf. consigne 1) -->
-        <!--
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
         </dependency>
-        -->
 
         <!-- ===================== ENVOI D'EMAILS (Gmail SMTP) ===================== -->
         <dependency>

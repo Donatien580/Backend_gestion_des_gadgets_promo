@@ -1,38 +1,10 @@
-/*package com.entreprise.gadgets.repository;
-
-import com.entreprise.gadgets.model.Demande;
-import com.entreprise.gadgets.model.enums.EtatDemande;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-
-public interface DemandeRepository extends JpaRepository<Demande, Integer> {
-
-    Optional<Demande> findByNumeroDemande(String numeroDemande);
-
-    Page<Demande> findByEtat(EtatDemande etat, Pageable pageable);
-
-    Page<Demande> findByAgentAffecte_IdUtilisateur(Integer idAgentAffecte, Pageable pageable);
-
-    Page<Demande> findByAgentSaisie_IdUtilisateur(Integer idAgentSaisie, Pageable pageable);
-
-    @Query("SELECT d FROM Demande d WHERE (:etat IS NULL OR d.etat = :etat) AND (:recherche IS NULL OR LOWER(d.numeroDemande) LIKE LOWER(CONCAT('%', CAST(:recherche AS string), '%')) OR LOWER(d.objet) LIKE LOWER(CONCAT('%', CAST(:recherche AS string), '%'))) ORDER BY d.dateDemande DESC")
-    Page<Demande> rechercher(EtatDemande etat, String recherche, Pageable pageable);
-
-    // Alimente la notification de rappel (US-24) : demandes en attente depuis plus de `depuis`.
-    @Query("SELECT d FROM Demande d WHERE d.etat = com.entreprise.gadgets.model.enums.EtatDemande.EN_ATTENTE AND d.dateDemande <= :depuis")
-    List<Demande> findEnAttenteDepuis(LocalDateTime depuis);
-}*/
-
 package com.entreprise.gadgets.repository;
 
 import com.entreprise.gadgets.model.Demande;
 import com.entreprise.gadgets.model.enums.EtatDemande;
+
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -43,10 +15,11 @@ public interface DemandeRepository extends JpaRepository<Demande, Integer> {
 
     boolean existsByNumeroDemande(String numeroDemande);
 
-    // Pagination simple sans filtre
+    long countByEtat(EtatDemande etat);
+    List<Demande> findTop5ByOrderByDateDemandeDesc();
+    
     Page<Demande> findAll(Pageable pageable);
 
-    // Filtre par état uniquement
     Page<Demande> findByEtat(EtatDemande etat, Pageable pageable);
 
     // Recherche uniquement (numéro ou objet)
@@ -61,4 +34,16 @@ public interface DemandeRepository extends JpaRepository<Demande, Integer> {
     Page<Demande> findByEtatAndRecherche(@Param("etat") EtatDemande etat,
                                          @Param("recherche") String recherche,
                                          Pageable pageable);
+    
+    @Query("SELECT DISTINCT d.nomDemandeur FROM Demande d WHERE LOWER(d.nomDemandeur) LIKE LOWER(CONCAT(:prefixe, '%')) ORDER BY d.nomDemandeur")
+    List<String> suggererNoms(@Param("prefixe") String prefixe, Pageable pageable);
+
+    @Query("SELECT DISTINCT d.prenomDemandeur FROM Demande d WHERE d.prenomDemandeur IS NOT NULL AND LOWER(d.prenomDemandeur) LIKE LOWER(CONCAT(:prefixe, '%')) ORDER BY d.prenomDemandeur")
+    List<String> suggererPrenoms(@Param("prefixe") String prefixe, Pageable pageable);
+
+    @Query("SELECT DISTINCT d.serviceDemandeur FROM Demande d WHERE d.serviceDemandeur IS NOT NULL AND LOWER(d.serviceDemandeur) LIKE LOWER(CONCAT(:prefixe, '%')) ORDER BY d.serviceDemandeur")
+    List<String> suggererServices(@Param("prefixe") String prefixe, Pageable pageable);
+
+    @Query("SELECT DISTINCT d.structureDemandeur FROM Demande d WHERE d.structureDemandeur IS NOT NULL AND LOWER(d.structureDemandeur) LIKE LOWER(CONCAT(:prefixe, '%')) ORDER BY d.structureDemandeur")
+    List<String> suggererStructures(@Param("prefixe") String prefixe, Pageable pageable);
 }

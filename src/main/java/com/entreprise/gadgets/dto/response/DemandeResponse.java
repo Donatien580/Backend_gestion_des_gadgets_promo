@@ -7,34 +7,31 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public record DemandeResponse(
-    Integer idDemande,
-    String numeroDemande,
-    String objet,
-    TypeDemande typeDemande,
-    LocalDateTime dateDemande,
-    LocalDate dateSouhaitee,
-    LocalDateTime dateValidation,
-    EtatDemande etat,
-    String motifRefus,
-    String observations,
-    
-    // Interne
-    Integer idService,
-    String libelleService,
-    String matriculeResponsable,
-    String nomResponsable,
-    Integer nombrePersonnelsImpactes,
+		Integer idDemande,
+	    String numeroDemande,
+	    String objet,
+	    TypeDemande typeDemande,
+	    LocalDateTime dateDemande,
+	    LocalDate dateSouhaitee,
+	    LocalDateTime dateValidation,
+	    LocalDateTime dateTraitement,
+	    EtatDemande etat,
+	    String motifRefus,
+	    String observations,
 
-    // Externe
-    String structure,
-    String representant,
-    String telephone,
+	    String nomDemandeur,
+	    String prenomDemandeur,
+	    String telephoneDemandeur,
 
-    // Agent affecté
-    Integer idAgentAffecte,
-    String nomAgentAffecte,
-    
-    PieceJustificativeResponse pieceJustificative,
+	    // Interne
+	    String matriculeDemandeur,
+	    String serviceDemandeur,
 
-    List<LigneDemandeResponse> lignes
+	    // Externe
+	    String structureDemandeur,
+
+	    AgentResume agentSaisie,
+	    AgentResume agentAffecte,
+
+	    PieceJustificativeResponse pieceJustificative
 ) {}

@@ -8,7 +8,6 @@ import java.util.List;
 
 public interface DistributionService {
 
-    //List<DistributionResponse> lister();
 	PageResponse<DistributionResponse> lister(int page, int size);
 
     DistributionResponse obtenir(Integer id);
@@ -19,5 +18,8 @@ public interface DistributionService {
 
     DistributionResponse executer(Integer id);
     
-    DistributionResponse signer(Integer id, String signePar);
+    List<String> suggererNomsReceptionnaire(String prefixe);
+    List<String> suggererPrenomsReceptionnaire(String prefixe);
+    List<String> suggererServicesReceptionnaire(String prefixe);
+    List<String> suggererDestinataires(String prefixe);
 }

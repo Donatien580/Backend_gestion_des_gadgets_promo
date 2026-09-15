@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface LigneApprovisionnementRepository extends JpaRepository<LigneApprovisionnement, Integer> {
     List<LigneApprovisionnement> findByApprovisionnement_IdApprovisionnement(Integer idApprovisionnement);
+    List<LigneApprovisionnement> findByApprovisionnement_IdApprovisionnementAndActifTrue(Integer idApprovisionnnement);
 }

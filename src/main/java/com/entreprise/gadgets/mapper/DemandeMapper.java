@@ -9,72 +9,42 @@ import java.util.List;
 @Component
 public class DemandeMapper {
 
-    public DemandeResponse toResponse(Demande demande) {
-        List<LigneDemandeResponse> lignes = demande.getLignes()
-                .stream()
-                .map(this::toLigneResponse)
-                .toList();
-
-        PieceJustificativeResponse piece = toPieceResponse(demande.getPieceJustificative());
-
-        // Informations du service pour demande interne
-        Integer idService = null;
-        String libelleService = null;
-        String matriculeResponsable = null;
-        String nomResponsable = null;
-        
-        if (demande.getService() != null) {
-            Services service = demande.getService();
-            idService = service.getIdService();
-            libelleService = service.getLibelleService();
-            matriculeResponsable = service.getMatriculeResponsable();
-            nomResponsable = service.getNomResponsable();
-        }
-
+	public DemandeResponse toResponse(Demande demande) {
         return new DemandeResponse(
-                demande.getIdDemande(),
-                demande.getNumeroDemande(),
-                demande.getObjet(),
-                demande.getTypeDemande(),
-                demande.getDateDemande(),
-                demande.getDateSouhaitee(),
-                demande.getDateValidation(),
-                demande.getEtat(),
-                demande.getMotifRefus(),
-                demande.getObservations(),
-                idService,
-                libelleService,
-                matriculeResponsable,
-                nomResponsable,
-                demande.getNombrePersonnelsImpactes(),
-                demande.getStructure(),
-                demande.getRepresentant(),
-                demande.getTelephone(),
-                demande.getAgentAffecte() != null ? demande.getAgentAffecte().getIdUtilisateur() : null,
-                demande.getAgentAffecte() != null
-                        ? demande.getAgentAffecte().getNom() + " " + demande.getAgentAffecte().getPrenom()
-                        : null,
-                piece,
-                lignes
+            demande.getIdDemande(),
+            demande.getNumeroDemande(),
+            demande.getObjet(),
+            demande.getTypeDemande(),
+            demande.getDateDemande(),
+            demande.getDateSouhaitee(),
+            demande.getDateValidation(),
+            demande.getDateTraitement(),
+            demande.getEtat(),
+            demande.getMotifRefus(),
+            demande.getObservations(),
+            demande.getNomDemandeur(),
+            demande.getPrenomDemandeur(),
+            demande.getTelephoneDemandeur(),
+            demande.getMatriculeDemandeur(),
+            demande.getServiceDemandeur(),
+            demande.getStructureDemandeur(),
+            toAgentResume(demande.getAgentSaisie()),
+            toAgentResume(demande.getAgentAffecte()),
+            toPieceResponse(demande.getPieceJustificative())
         );
     }
 
-    private LigneDemandeResponse toLigneResponse(LigneDemande ligne) {
-        return new LigneDemandeResponse(
-                ligne.getIdLigne(),
-                ligne.getGadget().getIdGadget(),
-                ligne.getGadget().getLibelle(),
-                ligne.getQuantiteDemandee(),
-                ligne.getQuantiteAccordee()
-        );
+    private AgentResume toAgentResume(Utilisateur utilisateur) {
+        if (utilisateur == null) return null;
+        return new AgentResume(utilisateur.getIdUtilisateur(), utilisateur.getNom(), utilisateur.getPrenom());
     }
 
     private PieceJustificativeResponse toPieceResponse(PieceJustificative piece) {
         if (piece == null) return null;
         return new PieceJustificativeResponse(
-                piece.getNomFichier(),
-                piece.getTypeFichier(),
-                piece.getCheminFichier()
+            piece.getNomFichier(),
+            piece.getTypeFichier(),
+            piece.getCheminFichier()
         );
     }
 }

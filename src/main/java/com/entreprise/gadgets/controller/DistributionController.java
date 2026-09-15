@@ -7,6 +7,7 @@ import com.entreprise.gadgets.service.DistributionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -29,16 +30,18 @@ public class DistributionController {
     public DistributionResponse obtenir(@PathVariable Integer id) {
         return distributionService.obtenir(id);
     }
-    
-    @PutMapping("/{id}/executer")
-    public DistributionResponse executer(@PathVariable Integer id) {
-        return distributionService.executer(id);
-    }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyRole('GESTIONNAIRE_STOCK','ADMIN')")
     public DistributionResponse creer(@Valid @RequestBody DistributionRequest requete) {
         return distributionService.creer(requete);
+    }
+
+    @PatchMapping("/{id}/executer")
+    @PreAuthorize("hasAnyRole('GESTIONNAIRE_STOCK','CHEF_SERVICE','CHEF_DEPARTEMENT','ADMIN')")
+    public DistributionResponse executer(@PathVariable Integer id) {
+        return distributionService.executer(id);
     }
 
     @GetMapping("/{id}/bordereau-pdf")
@@ -53,9 +56,23 @@ public class DistributionController {
         return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
     }
 
-    @PutMapping("/{id}/signer")
-    public DistributionResponse signer(@PathVariable Integer id,
-                                       @RequestParam String signePar) {
-        return distributionService.signer(id, signePar);
+    @GetMapping("/suggestions/noms-receptionnaire")
+    public List<String> suggererNomsReceptionnaire(@RequestParam(defaultValue = "") String prefixe) {
+        return distributionService.suggererNomsReceptionnaire(prefixe);
+    }
+
+    @GetMapping("/suggestions/prenoms-receptionnaire")
+    public List<String> suggererPrenomsReceptionnaire(@RequestParam(defaultValue = "") String prefixe) {
+        return distributionService.suggererPrenomsReceptionnaire(prefixe);
+    }
+
+    @GetMapping("/suggestions/services-receptionnaire")
+    public List<String> suggererServicesReceptionnaire(@RequestParam(defaultValue = "") String prefixe) {
+        return distributionService.suggererServicesReceptionnaire(prefixe);
+    }
+
+    @GetMapping("/suggestions/destinataires")
+    public List<String> suggererDestinataires(@RequestParam(defaultValue = "") String prefixe) {
+        return distributionService.suggererDestinataires(prefixe);
     }
 }

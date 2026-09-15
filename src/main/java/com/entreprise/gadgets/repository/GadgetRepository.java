@@ -1,12 +1,14 @@
 package com.entreprise.gadgets.repository;
 
 import com.entreprise.gadgets.model.Gadget;
+
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
-import java.util.List;
 
 public interface GadgetRepository extends JpaRepository<Gadget, Integer> {
 
@@ -22,4 +24,9 @@ public interface GadgetRepository extends JpaRepository<Gadget, Integer> {
 
     @Query("SELECT g FROM Gadget g WHERE g.actif = true AND g.quantiteDisponible <= g.seuilAlerte")
     List<Gadget> findGadgetsSousSeuilAlerte();
+    
+    List<Gadget> findByActifTrue();
+    
+    List<Gadget> findTop10ByActifTrueOrderByQuantiteDisponibleDesc();
+    
 }

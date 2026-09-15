@@ -1,13 +1,13 @@
 package com.entreprise.gadgets.model;
 
+import com.entreprise.gadgets.model.enums.EtatDistribution;
+import com.entreprise.gadgets.model.enums.TypeDistribution;
 import jakarta.persistence.*;
 import lombok.*;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-
-import com.entreprise.gadgets.model.enums.EtatDistribution;
-import com.entreprise.gadgets.model.enums.TypeDistribution;
 
 @Entity
 @Table(name = "distribution")
@@ -32,6 +32,7 @@ public class Distribution {
     @Column(name = "motif", columnDefinition = "TEXT")
     private String motif;
 
+    /** Libellé libre du destinataire pour une distribution EXTERNE. */
     @Column(name = "destinataire", length = 255)
     private String destinataire;
 
@@ -42,17 +43,34 @@ public class Distribution {
     @Column(name = "date_generation_bordereau")
     private LocalDateTime dateGenerationBordereau;
 
-    @Column(name = "date_signature")
-    private LocalDateTime dateSignature;
+    /** true = dotation (aucune demande associée). */
+    @Column(name = "est_dotation", nullable = false)
+    @Builder.Default
+    private Boolean estDotation = false;
 
-    @Column(name = "signe_par", length = 100)
-    private String signePar;
+    // Réceptionnaire (distribution INTERNE, liée à une demande ou en dotation)
+    @Column(name = "matricule_receptionnaire", length = 20)
+    private String matriculeReceptionnaire;
 
+    @Column(name = "nom_receptionnaire", length = 100)
+    private String nomReceptionnaire;
+
+    @Column(name = "prenom_receptionnaire", length = 100)
+    private String prenomReceptionnaire;
+
+    @Column(name = "service_receptionnaire", length = 100)
+    private String serviceReceptionnaire;
+
+    @Column(name = "nombre_personnes")
+    private Integer nombrePersonnes;
+
+    /** Nullable : absente pour une dotation. */
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_demande", nullable = false, unique = true)
+    @JoinColumn(name = "id_demande", unique = true)
     private Demande demande;
 
     @OneToMany(mappedBy = "distribution", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private List<LigneDistribution> lignes = new ArrayList<>();
 
     @PrePersist

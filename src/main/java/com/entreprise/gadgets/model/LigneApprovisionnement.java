@@ -23,14 +23,23 @@ public class LigneApprovisionnement {
     @Column(name = "quantite_recue", nullable = false)
     private Integer quantiteRecue;
 
-    @Column(name = "quantite_conforme")
-    private Integer quantiteConforme;
-
     @Column(name = "quantite_defectueuse")
     private Integer quantiteDefectueuse;
 
     @Column(name = "observation_qualite", length = 255)
     private String observationQualite;
+    
+    @Column(name="actif", nullable=false)
+    @Builder.Default
+    private Boolean actif= true;
+    
+    @Column(name="motif_correction", columnDefinition="TEXT")
+    private String motifCorrection;
+    
+    /* Ligne erronée que celle-ci remplace (null si c'est la saisie d'origine) */
+    @ManyToOne(fetch= FetchType.LAZY)
+    @JoinColumn(name="id_ligne_remplacee")
+    private LigneApprovisionnement ligneRemplacee;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_gadget", nullable = false)
@@ -39,4 +48,11 @@ public class LigneApprovisionnement {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_approvisionnement", nullable = false)
     private Approvisionnement approvisionnement;
+    
+    /** Quantité effectivement entrée en stock pour cette ligne (jamais persistée). */
+    @Transient
+    public Integer getQuantiteConforme() {
+    	if (quantiteRecue==null) return null;
+    	return quantiteRecue-(quantiteDefectueuse!=null? quantiteDefectueuse: 0);
+    }
 }

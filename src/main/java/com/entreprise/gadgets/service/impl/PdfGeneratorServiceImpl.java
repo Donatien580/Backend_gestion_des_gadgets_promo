@@ -69,17 +69,15 @@ public class PdfGeneratorServiceImpl implements PdfGeneratorService {
     }
 
     private String resoudreDestinataire(Distribution distribution) {
-        Demande demande = distribution.getDemande();
-        if (demande == null) return "";
-
         if (distribution.getTypeDistribution() == TypeDistribution.INTERNE) {
-            Services service = demande.getService();
-            return (service != null && service.getNomResponsable() != null)
-                    ? service.getNomResponsable()
-                    : "";
-        } else {
-            return demande.getRepresentant() != null ? demande.getRepresentant() : "";
+            String nom = distribution.getNomReceptionnaire();
+            if (distribution.getPrenomReceptionnaire() != null && !distribution.getPrenomReceptionnaire().isBlank()) {
+                nom = distribution.getPrenomReceptionnaire() + " " + nom;
+            }
+            String service = distribution.getServiceReceptionnaire();
+            return service != null && !service.isBlank() ? nom + " (" + service + ")" : nom;
         }
+        return distribution.getDestinataire() != null ? distribution.getDestinataire() : "";
     }
 
     private List<LigneBordereau> convertirLignes(Distribution distribution) {

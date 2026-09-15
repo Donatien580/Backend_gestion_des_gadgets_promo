@@ -11,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -34,11 +35,13 @@ public class InventaireController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyRole('GESTIONNAIRE_STOCK','ADMIN')")
     public InventaireResponse creer(@Valid @RequestBody InventaireRequest requete) {
         return inventaireService.creer(requete);
     }
 
     @PostMapping("/{id}/lignes")
+    @PreAuthorize("hasAnyRole('GESTIONNAIRE_STOCK','ADMIN')")
     public InventaireResponse saisirLigne(
         @PathVariable Integer id,
         @Valid @RequestBody LigneInventaireRequest requete
@@ -47,6 +50,7 @@ public class InventaireController {
     }
 
     @PatchMapping("/{id}/lignes/{idLigne}/justification")
+    @PreAuthorize("hasAnyRole('GESTIONNAIRE_STOCK','ADMIN')")
     public InventaireResponse justifierEcart(
         @PathVariable Integer id,
         @PathVariable Integer idLigne,
@@ -56,11 +60,13 @@ public class InventaireController {
     }
 
     @PatchMapping("/{id}/terminer")
+    @PreAuthorize("hasAnyRole('GESTIONNAIRE_STOCK','ADMIN')")
     public InventaireResponse terminer(@PathVariable Integer id) {
         return inventaireService.terminer(id);
     }
 
     @PatchMapping("/{id}/valider")
+    @PreAuthorize("hasAnyRole('CHEF_DEPARTEMENT','CHEF_SERVICE','ADMIN')")
     public InventaireResponse valider(@PathVariable Integer id) {
         return inventaireService.valider(id);
     }

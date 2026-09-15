@@ -6,7 +6,6 @@ import lombok.*;
 
 /**
  * Rôle applicatif. Table synchronisée avec les rôles définis dans Keycloak
- * (cf. section 2.1 de la documentation technique).
  */
 @Entity
 @Table(name = "role")

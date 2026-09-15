@@ -59,6 +59,14 @@ public class Gadget {
     @UpdateTimestamp
     @Column(name = "date_modification")
     private LocalDateTime dateModification;
+    
+    @Column(name="alerte_avertissement_envoyee", nullable = false)
+    @Builder.Default
+    private Boolean alerteAvertissementEnvoyee = false;
+    
+    @Column(name = "alerte_critique_envoyee", nullable = false)
+    @Builder.Default
+    private Boolean alerteCritiqueEnvoyee = false;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_categorie", nullable = false)
@@ -88,5 +96,10 @@ public class Gadget {
      */
     public boolean estSousSeuilAlerte() {
         return this.quantiteDisponible <= this.seuilAlerte;
+    }
+    
+    public void reinitialiserAlertes() {
+        this.alerteAvertissementEnvoyee = false;
+        this.alerteCritiqueEnvoyee = false;
     }
 }

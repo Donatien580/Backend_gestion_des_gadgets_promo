@@ -8,15 +8,20 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public record ApprovisionnementRequest(
-
-    /** Optionnelle : si absente, la date/heure de saisie est utilisée. */
+		
+		/** Optionnelle : si absente, la date/heure de saisie est utilisée. */
     LocalDateTime dateReception,
 
     @NotBlank(message = "Le fournisseur est obligatoire.")
     String fournisseur,
+    
+    @NotBlank(message = "L'adresse du fournisseur est obligatoire.")
+    String adresseFournisseur,
 
     String numeroPV,
 
+    String numeroMarche,
+    
     String observations,
 
     @NotEmpty(message = "Un approvisionnement doit contenir au moins une ligne.")

@@ -6,11 +6,6 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
-/**
- * Compte utilisateur de l'application.
- * Le mot de passe n'est plus géré ici une fois Keycloak branché (étape finale) ;
- * en attendant, le champ est conservé pour permettre des comptes de test locaux.
- */
 @Entity
 @Table(name = "utilisateur")
 @Getter
@@ -34,7 +29,6 @@ public class Utilisateur {
     @Column(name = "email", nullable = false, unique = true, length = 100)
     private String email;
 
-    /** Haché avec BCrypt. Redondant une fois Keycloak seul responsable de l'auth. */
     @Column(name = "mot_de_passe_hash", length = 255)
     private String motDePasseHash;
 
