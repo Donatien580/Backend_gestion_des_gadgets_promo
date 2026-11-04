@@ -1,10 +1,7 @@
 package com.entreprise.gadgets.service.impl;
 
-import com.entreprise.gadgets.dto.request.AffectationDemandeRequest;
-
 import com.entreprise.gadgets.dto.request.DemandeRequest;
 import com.entreprise.gadgets.dto.request.RefusDemandeRequest;
-import com.entreprise.gadgets.dto.response.AgentResume;
 import com.entreprise.gadgets.dto.response.DemandeResponse;
 import com.entreprise.gadgets.dto.response.PageResponse;
 import com.entreprise.gadgets.exception.BusinessException;
@@ -39,9 +36,6 @@ import java.util.List;
 @Transactional
 @Slf4j
 public class DemandeServiceImpl implements DemandeService {
-
-	/** Rôles pouvant se voir affecter une demande par le Chef Département. */
-    private static final List<RoleType> ROLES_AFFECTABLES = List.of(RoleType.CHEF_SERVICE);
 
     private final DemandeRepository demandeRepository;
     private final UtilisateurRepository utilisateurRepository;
@@ -110,6 +104,9 @@ public class DemandeServiceImpl implements DemandeService {
                 "La demande ne peut plus être modifiée (état actuel : " + demande.getEtat()
                     + "). Seule une demande en attente peut être corrigée.");
         }
+        
+        //Vérifie que l'utilisateur courant est bien le créateur (ou admin)
+        verifierProprietaire(demande);
 
         validerRequete(requete);
 
@@ -122,39 +119,51 @@ public class DemandeServiceImpl implements DemandeService {
         return demandeMapper.toResponse(demandeRepository.save(demande));
     }
 
-    // ---------- VALIDER (Chef Département) ----------
+    // ---------- VALIDER (Chef Département puis Chef Service) ----------
     @Override
     public DemandeResponse valider(Integer id) {
-        verifierRoleValidation("valider");
-
         Demande demande = trouverParId(id);
-        if (demande.getEtat() != EtatDemande.EN_ATTENTE) {
-            throw new BusinessException("La demande ne peut pas être validée (état actuel : " + demande.getEtat() + ").");
-        }
 
-        demande.setEtat(EtatDemande.VALIDEE_CHEF_DEPARTEMENT);
-        demande.setDateValidation(LocalDateTime.now());
+        switch (demande.getEtat()) {
+            case EN_ATTENTE -> {
+                // Étape 1 : le Chef Département valide → passe au Chef Service
+                verifierRole(RoleType.CHEF_DEPARTEMENT, "valider");
+                demande.setEtat(EtatDemande.VALIDEE_CHEF_DEPARTEMENT);
+                demande.setDateValidation(LocalDateTime.now());
+                demande.setAgentAffecte(chefServiceActif());
+            }
+            case VALIDEE_CHEF_DEPARTEMENT -> {
+                // Étape 2 : le Chef Service valide à son tour → passe à AFFECTEE
+                verifierRole(RoleType.CHEF_SERVICE, "valider");
+                demande.setEtat(EtatDemande.AFFECTEE);
+            }
+            default -> throw new BusinessException(
+                "La demande ne peut pas être validée à ce stade (état actuel : "
+                + demande.getEtat() + ").");
+        }
 
         return demandeMapper.toResponse(demandeRepository.save(demande));
     }
 
-    // ---------- REFUSER (Chef Département, motif obligatoire) ----------
-    @Override
-    public DemandeResponse refuser(Integer id, RefusDemandeRequest requete) {
-        verifierRoleValidation("refuser");
+    // ---------- REFUSER (Chef Département ou Chef Service, motif obligatoire) ----------
+        @Override
+    		public DemandeResponse refuser(Integer id, RefusDemandeRequest requete) {
+    			Demande demande = trouverParId(id);
 
-        Demande demande = trouverParId(id);
-        if (demande.getEtat() == EtatDemande.TRAITEE
-            || demande.getEtat() == EtatDemande.REFUSEE
-            || demande.getEtat() == EtatDemande.ANNULEE) {
-            throw new BusinessException("La demande est déjà clôturée (état actuel : " + demande.getEtat() + ").");
-        }
+    			switch (demande.getEtat()) {
+    			case EN_ATTENTE ->
+    				verifierRole(RoleType.CHEF_DEPARTEMENT, "refuser");
+    			case VALIDEE_CHEF_DEPARTEMENT, AFFECTEE ->
+    				verifierRole(RoleType.CHEF_SERVICE, "refuser");
+    			default -> throw new BusinessException(
+    					"La demande ne peut plus être refusée à ce stade (état actuel : "
+    						+ demande.getEtat() + ").");
+    		}
 
-        demande.setEtat(EtatDemande.REFUSEE);
-        demande.setMotifRefus(requete.motifRefus());
-
-        return demandeMapper.toResponse(demandeRepository.save(demande));
-    }
+		    demande.setEtat(EtatDemande.REFUSEE);
+		    demande.setMotifRefus(requete.motifRefus());
+		    return demandeMapper.toResponse(demandeRepository.save(demande));
+		}
 
     // ---------- ANNULER ----------
     @Override
@@ -163,42 +172,44 @@ public class DemandeServiceImpl implements DemandeService {
         if (demande.getEtat() != EtatDemande.EN_ATTENTE) {
             throw new BusinessException("Seule une demande en attente peut être annulée.");
         }
+        verifierProprietaire(demande);
         demande.setEtat(EtatDemande.ANNULEE);
         return demandeMapper.toResponse(demandeRepository.save(demande));
     }
 
-    // ---------- AFFECTER (Chef Département) ----------
+    // ---------- AFFECTER ----------
     @Override
-    public DemandeResponse affecter(Integer id, AffectationDemandeRequest requete) {
-    	   verifierRoleAffectation();
-
+    public DemandeResponse affecter(Integer id) {
         Demande demande = trouverParId(id);
-        if (demande.getEtat() != EtatDemande.VALIDEE_CHEF_DEPARTEMENT) {
+
+        if (demande.getEtat() != EtatDemande.EN_ATTENTE) {
             throw new BusinessException(
-                "La demande doit être validée par le Chef Département avant d'être affectée (état actuel : "
-                    + demande.getEtat() + ").");
+                "Seule une demande en attente peut être affectée (état actuel : "
+                + demande.getEtat() + ").");
         }
+        verifierRole(RoleType.CHEF_DEPARTEMENT, "affecter");
 
-        Utilisateur agent = utilisateurRepository.findById(requete.idAgentAffecte())
-            .orElseThrow(() -> RessourceIntrouvableException.pour("Utilisateur", requete.idAgentAffecte()));
-
-        if (!ROLES_AFFECTABLES.contains(agent.getRole().getNom())) {
-            throw new BusinessException(
-                "\"" + agent.getNom() + " " + agent.getPrenom() + "\" n'a pas un rôle pouvant être affecté à une demande.");
-        }
-
-        demande.setAgentAffecte(agent);
         demande.setEtat(EtatDemande.AFFECTEE);
+        demande.setDateValidation(LocalDateTime.now());
+        demande.setAgentAffecte(chefServiceActif());
 
         return demandeMapper.toResponse(demandeRepository.save(demande));
     }
 
+    // ---------- TRAITER (Chef Service) ----------
     @Override
-    @Transactional(readOnly = true)
-    public List<AgentResume> listerAgentsAffectables() {
-        return utilisateurRepository.findByRole_NomInAndActifTrueOrderByNomAsc(ROLES_AFFECTABLES).stream()
-            .map(u -> new AgentResume(u.getIdUtilisateur(), u.getNom(), u.getPrenom()))
-            .toList();
+    public DemandeResponse traiter(Integer id) {
+        Demande demande = trouverParId(id);
+
+        if (demande.getEtat() != EtatDemande.AFFECTEE) {
+            throw new BusinessException(
+                "Seule une demande affectée peut être traitée (état actuel : "
+                + demande.getEtat() + ").");
+        }
+        verifierRole(RoleType.CHEF_SERVICE, "traiter");
+
+        demande.setEtat(EtatDemande.TRAITEE);
+        return demandeMapper.toResponse(demandeRepository.save(demande));
     }
 
     // ---------- UPLOAD PIÈCE JUSTIFICATIVE ----------
@@ -231,6 +242,50 @@ public class DemandeServiceImpl implements DemandeService {
 
     // ================== MÉTHODES PRIVÉES ==================
 
+    private Utilisateur chefServiceActif() {
+        return utilisateurRepository
+            .findByRole_NomInAndActifTrueOrderByNomAsc(List.of(RoleType.CHEF_SERVICE))
+            .stream()
+            .findFirst()
+            .orElseThrow(() -> new BusinessException(
+                "Aucun Chef de Service actif n'est enregistré : impossible de transmettre la demande."));
+    }
+    
+ // APRÈS
+    private void verifierProprietaire(Demande demande) {
+        Utilisateur courant = utilisateurCourantService.obtenirUtilisateurConnecte();
+        RoleType role = courant.getRole().getNom();
+
+        if (role == RoleType.ADMIN
+            || role == RoleType.CHEF_SERVICE
+            || role == RoleType.CHEF_DEPARTEMENT) {
+            return;
+        }
+
+        if (demande.getAgentSaisie() == null
+            || !demande.getAgentSaisie().getIdUtilisateur().equals(courant.getIdUtilisateur())) {
+            throw new BusinessException(
+                "Vous ne pouvez modifier que les demandes que vous avez créées.");
+        }
+    }
+    
+    private void verifierRole(RoleType roleAttendu, String action) {
+        Utilisateur utilisateur = utilisateurCourantService.obtenirUtilisateurConnecte();
+        RoleType role = utilisateur.getRole().getNom();
+        if (role != roleAttendu && role != RoleType.ADMIN) {
+            throw new BusinessException(
+                "Seul le " + libelleRole(roleAttendu) + " peut " + action + " cette demande à ce stade.");
+        }
+    }
+
+    private String libelleRole(RoleType role) {
+        return switch (role) {
+            case CHEF_DEPARTEMENT -> "Chef Département";
+            case CHEF_SERVICE -> "Chef Service";
+            default -> role.name();
+        };
+    }
+    
     private void appliquerChampsDemandeur(Demande demande, DemandeRequest requete) {
         demande.setNomDemandeur(requete.nomDemandeur());
         demande.setPrenomDemandeur(requete.prenomDemandeur());
@@ -262,22 +317,6 @@ public class DemandeServiceImpl implements DemandeService {
         }
     }
 
-    private void verifierRoleValidation(String action) {
-        Utilisateur utilisateur = utilisateurCourantService.obtenirUtilisateurConnecte();
-        RoleType role = utilisateur.getRole().getNom();
-        if (role != RoleType.CHEF_DEPARTEMENT && role != RoleType.ADMIN) {
-            throw new BusinessException("Seul le Chef Département ou le Chef Service peut " + action + " une demande.");
-        }
-    }
-    
-    private void verifierRoleAffectation() {
-        Utilisateur utilisateur = utilisateurCourantService.obtenirUtilisateurConnecte();
-        RoleType role = utilisateur.getRole().getNom();
-        if (role != RoleType.CHEF_DEPARTEMENT && role != RoleType.ADMIN) {
-            throw new BusinessException("Seul le Chef Département peut affecter une demande.");
-        }
-    }
-
     private Demande trouverParId(Integer id) {
         return demandeRepository.findById(id)
             .orElseThrow(() -> RessourceIntrouvableException.pour("Demande", id));
@@ -294,29 +333,30 @@ public class DemandeServiceImpl implements DemandeService {
         return numero;
     }
     
-    	private static final int LIMITE_SUGGESTIONS = 8;
+    private static final int LIMITE_SUGGESTIONS = 8;
 
-    	@Override
-    	@Transactional(readOnly = true)
-    	public List<String> suggererNoms(String prefixe) {
-    	    return demandeRepository.suggererNoms(prefixe, PageRequest.of(0, LIMITE_SUGGESTIONS));
-    	}
+	@Override
+	@Transactional(readOnly = true)
+	public List<String> suggererNoms(String prefixe) {
+	    return demandeRepository.suggererNoms(prefixe, PageRequest.of(0, LIMITE_SUGGESTIONS));
+	}
 
-    	@Override
-    	@Transactional(readOnly = true)
-    	public List<String> suggererPrenoms(String prefixe) {
-    	    return demandeRepository.suggererPrenoms(prefixe, PageRequest.of(0, LIMITE_SUGGESTIONS));
-    	}
+	@Override
+	@Transactional(readOnly = true)
+	public List<String> suggererPrenoms(String prefixe) {
+	    return demandeRepository.suggererPrenoms(prefixe, PageRequest.of(0, LIMITE_SUGGESTIONS));
+	}
 
-    	@Override
-    	@Transactional(readOnly = true)
-    	public List<String> suggererServices(String prefixe) {
-    	    return demandeRepository.suggererServices(prefixe, PageRequest.of(0, LIMITE_SUGGESTIONS));
-    	}
+	@Override
+	@Transactional(readOnly = true)
+	public List<String> suggererServices(String prefixe) {
+	    return demandeRepository.suggererServices(prefixe, PageRequest.of(0, LIMITE_SUGGESTIONS));
+	}
 
-    	@Override
-    	@Transactional(readOnly = true)
-    	public List<String> suggererStructures(String prefixe) {
-    	    return demandeRepository.suggererStructures(prefixe, PageRequest.of(0, LIMITE_SUGGESTIONS));
-    	}
+	@Override
+	@Transactional(readOnly = true)
+	public List<String> suggererStructures(String prefixe) {
+	    return demandeRepository.suggererStructures(prefixe, PageRequest.of(0, LIMITE_SUGGESTIONS));
+	}
+
 }

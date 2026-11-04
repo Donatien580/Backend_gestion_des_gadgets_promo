@@ -2,6 +2,7 @@ package com.entreprise.gadgets.model;
 
 import jakarta.persistence.*;
 
+
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -33,10 +34,10 @@ public class Approvisionnement {
     @Column(name = "adresse_fournisseur", nullable = false, length = 255)
     private String adresseFournisseur;
 
-    @Column(name = "numero_pv", length = 30)
+    @Column(name = "numero_pv", length = 30, unique = true)
     private String numeroPV;
     
-    @Column(name= "numero_marche", length = 30)
+    @Column(name= "numero_marche", length = 30, unique = true)
     private String numeroMarche;
     
     @Enumerated(EnumType.STRING)

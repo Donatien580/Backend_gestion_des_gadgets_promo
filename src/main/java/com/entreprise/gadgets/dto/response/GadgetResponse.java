@@ -14,6 +14,6 @@ public record GadgetResponse(
     Boolean actif,
     CategorieResponse categorie,
 
-    /** Calculé à partir de quantiteDisponible et seuilAlerte, jamais stocké. */
+    /* Calculé à partir de quantiteDisponible et seuilAlerte, jamais stocké. */
     boolean sousSeuilAlerte
 ) {}

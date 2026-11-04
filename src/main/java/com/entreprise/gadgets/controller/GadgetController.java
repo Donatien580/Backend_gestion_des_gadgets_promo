@@ -15,9 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
-// TODO (intégration Keycloak) : restreindre creer/modifier/changerStatut aux
-// rôles ADMIN et GESTIONNAIRE_STOCK via @PreAuthorize une fois l'authentification
-// branchée (cf. remarque dans CategorieController).
+
 @RestController
 @RequestMapping("/api/v1/gadgets")
 @RequiredArgsConstructor

@@ -1,6 +1,7 @@
 package com.entreprise.gadgets.service.impl;
 
 import com.entreprise.gadgets.model.Role;
+
 import com.entreprise.gadgets.model.Utilisateur;
 import com.entreprise.gadgets.model.enums.RoleType;
 import com.entreprise.gadgets.repository.RoleRepository;

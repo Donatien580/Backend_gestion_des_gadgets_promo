@@ -1,5 +1,6 @@
 package com.entreprise.gadgets.controller;
 
+import com.entreprise.gadgets.dto.request.CorrectionDistributionRequest;
 import com.entreprise.gadgets.dto.request.DistributionRequest;
 import com.entreprise.gadgets.dto.response.DistributionResponse;
 import com.entreprise.gadgets.dto.response.PageResponse;
@@ -21,9 +22,10 @@ public class DistributionController {
 
     @GetMapping
     public PageResponse<DistributionResponse> lister(
+            @RequestParam(required = false) String recherche,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return distributionService.lister(page, size);
+        return distributionService.lister(recherche, page, size);
     }
 
     @GetMapping("/{id}")
@@ -33,13 +35,13 @@ public class DistributionController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('GESTIONNAIRE_STOCK','ADMIN')")
+    @PreAuthorize("hasAnyRole('GESTIONNAIRE_STOCK','CHEF_SERVICE','CHEF_DEPARTEMENT','ADMIN')")
     public DistributionResponse creer(@Valid @RequestBody DistributionRequest requete) {
         return distributionService.creer(requete);
     }
 
     @PatchMapping("/{id}/executer")
-    @PreAuthorize("hasAnyRole('GESTIONNAIRE_STOCK','CHEF_SERVICE','CHEF_DEPARTEMENT','ADMIN')")
+    @PreAuthorize("hasAnyRole('CHEF_SERVICE','CHEF_DEPARTEMENT','ADMIN')")
     public DistributionResponse executer(@PathVariable Integer id) {
         return distributionService.executer(id);
     }
@@ -59,6 +61,14 @@ public class DistributionController {
     @GetMapping("/suggestions/noms-receptionnaire")
     public List<String> suggererNomsReceptionnaire(@RequestParam(defaultValue = "") String prefixe) {
         return distributionService.suggererNomsReceptionnaire(prefixe);
+    }
+    
+    @PatchMapping("/{id}/corriger")
+    @PreAuthorize("hasAnyRole('GESTIONNAIRE_STOCK','CHEF_SERVICE','CHEF_DEPARTEMENT','ADMIN')")
+    public DistributionResponse corriger(
+            @PathVariable Integer id,
+            @Valid @RequestBody CorrectionDistributionRequest requete) {
+        return distributionService.corriger(id, requete);
     }
 
     @GetMapping("/suggestions/prenoms-receptionnaire")

@@ -37,17 +37,19 @@ spring:
   # et les variables d'environnement MAIL_USERNAME / MAIL_PASSWORD.
   mail:
     host: smtp.gmail.com
-    port: 587
+    port: 465
     username: ${MAIL_USERNAME:}
     password: ${MAIL_PASSWORD:}
     properties:
       mail:
         smtp:
           auth: true
-          starttls:
+          ssl:
             enable: true
+            trust: smtp.gmail.com
           connectiontimeout: 5000
           timeout: 5000
+          writetimeout: 5000
 
 server:
   port: 8080

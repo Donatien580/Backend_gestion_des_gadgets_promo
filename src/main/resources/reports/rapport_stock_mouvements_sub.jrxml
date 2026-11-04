@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports
+              http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="rapport_stock_mouvements_sub"
+              pageWidth="555" pageHeight="200"
+              whenNoDataType="NoDataSection"
+              columnWidth="555"
+              leftMargin="0" rightMargin="0"
+              topMargin="0" bottomMargin="0"
+              uuid="e502c5d0-ed64-46e8-82fd-0d886416a12a">
+
+    <style name="tableHeader" mode="Opaque" forecolor="#FFFFFF" backcolor="#0033A0"
+           hTextAlign="Center" vTextAlign="Middle" fontSize="9" isBold="true">
+        <box padding="2">
+            <pen lineWidth="0.5" lineColor="#000000"/>
+        </box>
+    </style>
+
+    <style name="tableCell" mode="Opaque" backcolor="#FFFFFF" vTextAlign="Middle" fontSize="9">
+        <box padding="2">
+            <pen lineWidth="0.5" lineColor="#000000"/>
+        </box>
+        <conditionalStyle>
+            <conditionExpression><![CDATA[$V{REPORT_COUNT}.intValue() % 2 == 0]]></conditionExpression>
+            <style mode="Opaque" backcolor="#D6EAF8"/>
+        </conditionalStyle>
+    </style>
+
+    <style name="tableCellCenter" mode="Opaque" backcolor="#FFFFFF"
+           hTextAlign="Center" vTextAlign="Middle" fontSize="9">
+        <box padding="2">
+            <pen lineWidth="0.5" lineColor="#000000"/>
+        </box>
+        <conditionalStyle>
+            <conditionExpression><![CDATA[$V{REPORT_COUNT}.intValue() % 2 == 0]]></conditionExpression>
+            <style mode="Opaque" backcolor="#D6EAF8"/>
+        </conditionalStyle>
+    </style>
+
+    <!-- CHAMPS -->
+    <field name="dateMouvement" class="java.sql.Timestamp"/>
+    <field name="article" class="java.lang.String"/>
+    <field name="typeMouvement" class="java.lang.String"/>
+    <field name="quantite" class="java.lang.Integer"/>
+    <field name="utilisateur" class="java.lang.String"/>
+    <field name="reference" class="java.lang.String"/> 
+    <field name="motif" class="java.lang.String"/>
+
+    <columnHeader>
+        <band height="20">
+            <staticText>
+                <reportElement style="tableHeader" x="0" y="0" width="75" height="20"/>
+                <text><![CDATA[Date]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="tableHeader" x="75" y="0" width="100" height="20"/>
+                <text><![CDATA[Article]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="tableHeader" x="175" y="0" width="70" height="20"/>
+                <text><![CDATA[Type]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="tableHeader" x="245" y="0" width="80" height="20"/>
+                <text><![CDATA[Référence]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="tableHeader" x="325" y="0" width="45" height="20"/>
+                <text><![CDATA[Qté]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="tableHeader" x="370" y="0" width="90" height="20"/>
+                <text><![CDATA[Utilisateur]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="tableHeader" x="460" y="0" width="95" height="20"/>
+                <text><![CDATA[Motif]]></text>
+            </staticText>
+        </band>
+    </columnHeader>
+
+    <detail>
+        <band height="18">
+            <textField pattern="dd/MM/yyyy HH:mm">
+                <reportElement style="tableCellCenter" x="0" y="0" width="75" height="18"/>
+                <textElement textAlignment="Center"/>
+                <textFieldExpression><![CDATA[$F{dateMouvement}]]></textFieldExpression>
+            </textField>
+
+            <textField textAdjust="StretchHeight" isBlankWhenNull="true">
+                <reportElement style="tableCell" x="75" y="0" width="100" height="18"/>
+                <textFieldExpression><![CDATA[$F{article}]]></textFieldExpression>
+            </textField>
+
+            <textField isBlankWhenNull="true">
+                <reportElement style="tableCellCenter" x="175" y="0" width="70" height="18"/>
+                <textFieldExpression><![CDATA[$F{typeMouvement}]]></textFieldExpression>
+            </textField>
+
+            <textField textAdjust="StretchHeight" isBlankWhenNull="true">
+                <reportElement style="tableCellCenter" x="245" y="0" width="80" height="18"/>
+                <textFieldExpression><![CDATA[$F{reference}]]></textFieldExpression>
+            </textField>
+
+            <textField isBlankWhenNull="true">
+                <reportElement style="tableCellCenter" x="325" y="0" width="45" height="18"/>
+                <textFieldExpression><![CDATA[$F{quantite}]]></textFieldExpression>
+            </textField>
+
+            <textField textAdjust="StretchHeight" isBlankWhenNull="true">
+                <reportElement style="tableCell" x="370" y="0" width="90" height="18"/>
+                <textFieldExpression><![CDATA[$F{utilisateur}]]></textFieldExpression>
+            </textField>
+
+            <textField textAdjust="StretchHeight" isBlankWhenNull="true">
+                <reportElement style="tableCell" x="460" y="0" width="95" height="18"/>
+                <textFieldExpression><![CDATA[$F{motif}]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+
+    <noData>
+        <band height="20">
+            <staticText>
+                <reportElement x="0" y="0" width="555" height="20" forecolor="#777777"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle">
+                    <font size="9" isItalic="true"/>
+                </textElement>
+                <text><![CDATA[Aucun mouvement sur la période sélectionnée.]]></text>
+            </staticText>
+        </band>
+    </noData>
+</jasperReport>

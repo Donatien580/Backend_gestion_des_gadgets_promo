@@ -9,6 +9,7 @@ import com.entreprise.gadgets.dto.request.InventaireRequest;
 import com.entreprise.gadgets.dto.request.JustificationRequest;
 import com.entreprise.gadgets.dto.request.LigneInventaireRequest;
 import com.entreprise.gadgets.dto.response.InventaireResponse;
+import com.entreprise.gadgets.exception.BusinessException;
 import com.entreprise.gadgets.exception.EcartNonJustifieException;
 import com.entreprise.gadgets.exception.EtatInvalideException;
 import com.entreprise.gadgets.exception.RessourceIntrouvableException;
@@ -18,10 +19,10 @@ import com.entreprise.gadgets.model.Inventaire;
 import com.entreprise.gadgets.model.LigneInventaire;
 import com.entreprise.gadgets.model.Utilisateur;
 import com.entreprise.gadgets.model.enums.EtatInventaire;
+import com.entreprise.gadgets.model.enums.RoleType;
 import com.entreprise.gadgets.repository.GadgetRepository;
 import com.entreprise.gadgets.repository.InventaireRepository;
 import com.entreprise.gadgets.repository.LigneInventaireRepository;
-import com.entreprise.gadgets.repository.UtilisateurRepository;
 import com.entreprise.gadgets.service.InventaireService;
 import com.entreprise.gadgets.service.StockService;
 import com.entreprise.gadgets.service.UtilisateurCourantService;
@@ -32,40 +33,46 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @Transactional
 public class InventaireServiceImpl implements InventaireService {
-   
-	private static final String TYPE_REFERENCE = "INVENTAIRE";
-	//private static final final String EMAIL_UTILISATEUR_SYSTEME ="systeme@dm";
-	
-	private final InventaireRepository inventaireRepository;
+
+    private static final String TYPE_REFERENCE = "INVENTAIRE";
+
+    private final InventaireRepository inventaireRepository;
     private final LigneInventaireRepository ligneInventaireRepository;
     private final GadgetRepository gadgetRepository;
-    private final UtilisateurRepository utilisateurRepository;
     private final StockService stockService;
+    private final UtilisateurCourantService utilisateurCourantService;
     private final InventaireMapper inventaireMapper;
-    
+
     @Override
-    @Transactional(readOnly= true)
-    public Page<InventaireResponse> lister(Pageable pageable) {
-       return inventaireRepository.findAll(pageable).map(inventaireMapper::versReponse);
+    @Transactional(readOnly = true)
+    public Page<InventaireResponse> lister(String recherche, Pageable pageable) {
+        boolean hasRecherche = recherche != null && !recherche.isBlank();
+        Page<Inventaire> inventairesPage = hasRecherche
+            ? inventaireRepository.rechercher(recherche, pageable)
+            : inventaireRepository.findAll(pageable);
+        return inventairesPage.map(inventaireMapper::versReponse);
     }
-    
+
     @Override
     @Transactional(readOnly = true)
     public InventaireResponse obtenirParId(Integer idInventaire) {
         return inventaireMapper.versReponse(recupererAvecLignes(idInventaire));
     }
-    
+
     @Override
     public InventaireResponse creer(InventaireRequest requete) {
-    	Inventaire inventaire = Inventaire.builder()
-    			.dateInventaire(requete.dateInventaire())
-    			.typeInventaire(requete.typeInventaire())
-    			.observations(requete.observations())
-    			.etat(EtatInventaire.EN_COURS)
-    			.build();
-    	return inventaireMapper.versReponse(inventaireRepository.save(inventaire));
+        Utilisateur realisateur = utilisateurCourantService.obtenirUtilisateurConnecte();
+
+        Inventaire inventaire = Inventaire.builder()
+            .dateInventaire(requete.dateInventaire())
+            .typeInventaire(requete.typeInventaire())
+            .observations(requete.observations())
+            .etat(EtatInventaire.EN_COURS)
+            .realisateur(realisateur)
+            .build();
+        return inventaireMapper.versReponse(inventaireRepository.save(inventaire));
     }
-    
+
     @Override
     public InventaireResponse saisirLigne(Integer idInventaire, LigneInventaireRequest requete) {
         Inventaire inventaire = recupererAvecLignes(idInventaire);
@@ -102,13 +109,10 @@ public class InventaireServiceImpl implements InventaireService {
     @Override
     public InventaireResponse justifierEcart(Integer idInventaire, Integer idLigne, JustificationRequest requete) {
         Inventaire inventaire = recupererAvecLignes(idInventaire);
-        
+
         if (inventaire.getEtat() == EtatInventaire.VALIDE) {
-        	throw new EtatInvalideException("Impossible de justifier un écart : l'inventaire est déjà validé");
+            throw new EtatInvalideException("Impossible de justifier un écart : l'inventaire est déjà validé");
         }
-        /*exigerEtat(inventaire, EtatInventaire.EN_COURS,
-            "Impossible de justifier un écart : l'inventaire n'est plus en cours.");
-         */
 
         LigneInventaire ligne = ligneInventaireRepository.findById(idLigne)
             .filter(l -> l.getInventaire().getIdInventaire().equals(idInventaire))
@@ -142,12 +146,14 @@ public class InventaireServiceImpl implements InventaireService {
 
     @Override
     public InventaireResponse valider(Integer idInventaire) {
+        verifierRoleValidation();
+
         Inventaire inventaire = recupererAvecLignes(idInventaire);
-        
+
         exigerEtat(inventaire, EtatInventaire.TERMINE,
             "Seul un inventaire terminé peut être validé.");
 
-        //Tout écart doit être justifié avant validation.
+        // Tout écart doit être justifié avant validation.
         for (LigneInventaire ligne : inventaire.getLignes()) {
             if (ligne.necessiteJustification()
                 && (ligne.getJustification() == null || ligne.getJustification().isBlank())) {
@@ -157,15 +163,14 @@ public class InventaireServiceImpl implements InventaireService {
             }
         }
 
-        //Mise à jour automatique du stock pour chaque écart constaté.
-        Utilisateur utilisateur = getUtilisateurTemporaire();
+        // Mise à jour automatique du stock pour chaque écart constaté.
+        Utilisateur utilisateur = utilisateurCourantService.obtenirUtilisateurConnecte();
         for (LigneInventaire ligne : inventaire.getLignes()) {
             if (ligne.necessiteJustification()) {
                 stockService.enregistrerAjustementInventaire(
                     ligne.getGadget(),
                     ligne.getEcart(),
                     utilisateur,
-                    //inventaire.getRealisateur(),
                     "Ajustement d'inventaire #" + idInventaire + " - " + ligne.getJustification(),
                     idInventaire,
                     TYPE_REFERENCE
@@ -188,9 +193,13 @@ public class InventaireServiceImpl implements InventaireService {
             throw new EtatInvalideException(message);
         }
     }
-    
-    private Utilisateur getUtilisateurTemporaire() {
-    	return utilisateurRepository.findById(1)
-    			.orElseThrow(()-> new RessourceIntrouvableException("Utilisateur par défaut introuvable"));
+
+    /** Défense en profondeur, en plus du @PreAuthorize du contrôleur. */
+    private void verifierRoleValidation() {
+        Utilisateur utilisateur = utilisateurCourantService.obtenirUtilisateurConnecte();
+        RoleType role = utilisateur.getRole().getNom();
+        if (role != RoleType.CHEF_DEPARTEMENT && role != RoleType.CHEF_SERVICE && role != RoleType.ADMIN) {
+            throw new BusinessException("Seul le Chef Département ou le Chef Service peut valider un inventaire.");
+        }
     }
 }

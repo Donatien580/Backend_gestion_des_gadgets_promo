@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with Jaspersoft Studio version 6.20.6.final using JasperReports Library version 6.20.6-5c96b6aa8a39ac1dc6b6bea4b81168e16dd39231  -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="RapportStock" pageWidth="595" pageHeight="842" columnWidth="555" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" uuid="c2d3e4f5-6789-4001-8001-000000000001">
+	<style name="tableHeader" mode="Opaque" forecolor="#FFFFFF" backcolor="#0033A0" hTextAlign="Center" vTextAlign="Middle" fontSize="10" isBold="true">
+		<box padding="2">
+			<pen lineWidth="1.0" lineColor="#000000"/>
+		</box>
+	</style>
+	<style name="tableCell" mode="Opaque" backcolor="#FFFFFF" vTextAlign="Middle" fontSize="10">
+		<box padding="2">
+			<pen lineWidth="1.0" lineColor="#000000"/>
+		</box>
+		<conditionalStyle>
+			<conditionExpression><![CDATA[$V{REPORT_COUNT}.intValue() % 2 == 1]]></conditionExpression>
+			<style mode="Opaque" backcolor="#FFFFFF"/>
+		</conditionalStyle>
+		<conditionalStyle>
+			<conditionExpression><![CDATA[$V{REPORT_COUNT}.intValue() % 2 == 0]]></conditionExpression>
+			<style mode="Opaque" backcolor="#D6EAF8"/>
+		</conditionalStyle>
+	</style>
+	<style name="groupHeaderCategorie" mode="Opaque" forecolor="#0033A0" backcolor="#B8D4EC" vTextAlign="Middle" fontSize="10" isBold="true">
+		<box leftPadding="6">
+			<pen lineWidth="1.0" lineColor="#000000"/>
+		</box>
+	</style>
+	<parameter name="mouvementsSubreport" class="net.sf.jasperreports.engine.JasperReport"/>
+	<parameter name="mouvementsDataSource" class="net.sf.jasperreports.engine.JRDataSource"/>
+	<parameter name="logoStream" class="java.io.InputStream"/>
+	<parameter name="dateGeneration" class="java.util.Date"/>
+	<parameter name="dateDebutPeriode" class="java.util.Date"/>
+	<parameter name="dateFinPeriode" class="java.util.Date"/>
+	<parameter name="departement" class="java.lang.String"/>
+	<parameter name="genererPar" class="java.lang.String"/>
+	<parameter name="nombreTotalArticles" class="java.lang.Integer"/>
+	<parameter name="articlesEnAlerte" class="java.lang.Integer"/>
+	<parameter name="articlesEnRupture" class="java.lang.Integer"/>
+	<field name="libelle" class="java.lang.String"/>
+	<field name="designation" class="java.lang.String"/>
+        <field name="categorie" class="java.lang.String"/>
+	<field name="stock" class="java.lang.Integer"/>
+	<field name="seuil" class="java.lang.Integer"/>
+	<group name="groupeCategorie">
+		<groupExpression><![CDATA[$F{categorie}]]></groupExpression>
+		<groupHeader>
+			<band height="18">
+				<textField textAdjust="StretchHeight">
+					<reportElement style="groupHeaderCategorie" x="0" y="0" width="555" height="18" uuid="c2d3e4f5-6789-4001-8001-000000000060"/>
+					<textFieldExpression><![CDATA[$F{categorie}]]></textFieldExpression>
+				</textField>
+			</band>
+		</groupHeader>
+	</group>
+	<title>
+		<band height="227">
+			<image>
+				<reportElement x="0" y="0" width="80" height="80" uuid="2c527780-f54c-40ef-bcfa-705d1f101cdc"/>
+				<imageExpression><![CDATA[$P{logoStream}]]></imageExpression>
+			</image>
+			<staticText>
+				<reportElement x="100" y="0" width="455" height="16" uuid="c2d3e4f5-6789-4001-8001-000000000010"/>
+				<textElement textAlignment="Center">
+					<font size="11" isBold="true"/>
+				</textElement>
+				<text><![CDATA[SOCIETE NATIONALE D'ELECTRICITE DU BURKINA (SONABEL)]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="100" y="16" width="455" height="14" uuid="c2d3e4f5-6789-4001-8001-000000000011"/>
+				<textElement textAlignment="Center"/>
+				<text><![CDATA[DIRECTION GENERALE]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="100" y="30" width="455" height="14" uuid="c2d3e4f5-6789-4001-8001-000000000012"/>
+				<textElement textAlignment="Center"/>
+				<text><![CDATA[SECRETARIAT GENERAL]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="100" y="44" width="455" height="14" uuid="c2d3e4f5-6789-4001-8001-000000000013"/>
+				<textElement textAlignment="Center"/>
+				<text><![CDATA[POLE DISTRIBUTION ET COMMERCIALISATION]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="100" y="58" width="455" height="14" uuid="c2d3e4f5-6789-4001-8001-000000000014"/>
+				<textElement textAlignment="Center"/>
+				<text><![CDATA[DIRECTION COMMERCIALE ET MARKETING]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="100" y="72" width="455" height="14" uuid="c2d3e4f5-6789-4001-8001-000000000015"/>
+				<textElement textAlignment="Center"/>
+				<text><![CDATA[DEPARTEMENT MARKETING ET INNOVATIONS]]></text>
+			</staticText>
+			<line>
+				<reportElement x="0" y="90" width="555" height="1" uuid="c2d3e4f5-6789-4001-8001-000000000016"/>
+			</line>
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="100" width="555" height="20" forecolor="#FFFFFF" backcolor="#0033A0" uuid="c2d3e4f5-6789-4001-8001-000000000017"/>
+				<textElement textAlignment="Center">
+					<font size="14" isBold="true"/>
+				</textElement>
+				<text><![CDATA[RAPPORT DE STOCK]]></text>
+			</staticText>
+			<textField pattern="dd/MM/yyyy">
+				<reportElement x="0" y="128" width="270" height="14" uuid="c2d3e4f5-6789-4001-8001-000000000018"/>
+				<textFieldExpression><![CDATA["Date : " + new java.text.SimpleDateFormat("dd/MM/yyyy").format($P{dateGeneration})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="285" y="128" width="270" height="14" uuid="c2d3e4f5-6789-4001-8001-000000000019"/>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA["Période : " + new java.text.SimpleDateFormat("dd/MM/yyyy").format($P{dateDebutPeriode}) + " - " + new java.text.SimpleDateFormat("dd/MM/yyyy").format($P{dateFinPeriode})]]></textFieldExpression>
+			</textField>
+			<textField textAdjust="StretchHeight">
+				<reportElement x="0" y="144" width="270" height="14" uuid="c2d3e4f5-6789-4001-8001-000000000020"/>
+				<textFieldExpression><![CDATA["Département : " + $P{departement}]]></textFieldExpression>
+			</textField>
+			<textField textAdjust="StretchHeight">
+				<reportElement x="285" y="144" width="270" height="14" uuid="c2d3e4f5-6789-4001-8001-000000000021"/>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA["Généré par : " + $P{genererPar}]]></textFieldExpression>
+			</textField>
+			<rectangle>
+				<reportElement x="0" y="166" width="555" height="40" uuid="c2d3e4f5-6789-4001-8001-000000000022"/>
+				<graphicElement>
+					<pen lineWidth="1.0" lineColor="#000000"/>
+				</graphicElement>
+			</rectangle>
+			<staticText>
+				<reportElement x="10" y="172" width="270" height="14" uuid="c2d3e4f5-6789-4001-8001-000000000023"/>
+				<textElement>
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[RÉSUMÉ]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="10" y="190" width="180" height="14" uuid="c2d3e4f5-6789-4001-8001-000000000024"/>
+				<textFieldExpression><![CDATA["Nombre total d'articles : " + $P{nombreTotalArticles}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="195" y="190" width="175" height="14" uuid="c2d3e4f5-6789-4001-8001-000000000026"/>
+				<textFieldExpression><![CDATA["Articles en alerte : " + $P{articlesEnAlerte}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="375" y="190" width="180" height="14" uuid="c2d3e4f5-6789-4001-8001-000000000027"/>
+				<textFieldExpression><![CDATA["Articles en rupture : " + $P{articlesEnRupture}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="0" y="214" width="555" height="13" uuid="c2d3e4f5-6789-4001-8001-000000000028"/>
+				<textElement>
+					<font size="9" isBold="true"/>
+				</textElement>
+				<text><![CDATA[DÉTAIL DU STOCK]]></text>
+			</staticText>
+		</band>
+	</title>
+	<columnHeader>
+		<band height="22">
+			<staticText>
+				<reportElement style="tableHeader" x="0" y="0" width="170" height="22" uuid="c2d3e4f5-6789-4001-8001-000000000030"/>
+				<text><![CDATA[Libellé]]></text>
+			</staticText>
+			<staticText>
+				<reportElement style="tableHeader" x="170" y="0" width="215" height="22" uuid="c2d3e4f5-6789-4001-8001-000000000031"/>
+				<text><![CDATA[Désignation]]></text>
+			</staticText>
+			<staticText>
+				<reportElement style="tableHeader" x="385" y="0" width="85" height="22" uuid="c2d3e4f5-6789-4001-8001-000000000033"/>
+				<text><![CDATA[Stock]]></text>
+			</staticText>
+			<staticText>
+				<reportElement style="tableHeader" x="470" y="0" width="85" height="22" uuid="c2d3e4f5-6789-4001-8001-000000000034"/>
+				<text><![CDATA[Seuil]]></text>
+			</staticText>
+		</band>
+	</columnHeader>
+	<detail>
+		<band height="20">
+			<textField textAdjust="StretchHeight">
+				<reportElement style="tableCell" x="0" y="0" width="170" height="20" uuid="c2d3e4f5-6789-4001-8001-000000000040"/>
+				<textFieldExpression><![CDATA[$F{libelle}]]></textFieldExpression>
+			</textField>
+			<textField textAdjust="StretchHeight">
+				<reportElement style="tableCell" x="170" y="0" width="215" height="20" uuid="c2d3e4f5-6789-4001-8001-000000000041"/>
+				<textFieldExpression><![CDATA[$F{designation}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="tableCell" x="385" y="0" width="85" height="20" uuid="c2d3e4f5-6789-4001-8001-000000000043"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA[$F{stock}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="tableCell" x="470" y="0" width="85" height="20" uuid="c2d3e4f5-6789-4001-8001-000000000044"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA[$F{seuil}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<summary>
+		<band height="260">
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="10" width="555" height="20" forecolor="#FFFFFF" backcolor="#0033A0" uuid="c2d3e4f5-6789-4001-8001-000000000050"/>
+				<textElement textAlignment="Center">
+					<font size="11" isBold="true"/>
+				</textElement>
+				<text><![CDATA[MOUVEMENTS DE LA PÉRIODE]]></text>
+			</staticText>
+			<subreport>
+				<reportElement x="0" y="34" width="555" height="200" uuid="c2d3e4f5-6789-4001-8001-000000000051"/>
+				<dataSourceExpression><![CDATA[$P{mouvementsDataSource}]]></dataSourceExpression>
+				<subreportExpression><![CDATA[$P{mouvementsSubreport}]]></subreportExpression>
+			</subreport>
+		</band>
+	</summary>
+</jasperReport>

@@ -17,11 +17,13 @@ public record DistributionResponse(
 	    String nomReceptionnaire,
 	    String prenomReceptionnaire,
 	    String serviceReceptionnaire,
+	    String structureBeneficiaire,
 	    Integer nombrePersonnes,
 	    EtatDistribution etat,
 	    LocalDateTime dateGenerationBordereau,
 	    Integer idDemande,
 	    String numeroDemande,
 	    String objetDemande,
-	    List<LigneDistributionResponse> lignes
+	    List<LigneDistributionResponse> lignes,
+	    List<GroupeBeneficiaireResponse> groupes
 ) {}

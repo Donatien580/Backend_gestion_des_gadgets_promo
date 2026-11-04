@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:${DB_PORT:5433}/gadgets_db
+    url: jdbc:postgresql://localhost:5433/gadgets_db
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:123}
     driver-class-name: org.postgresql.Driver
@@ -11,4 +11,3 @@ spring:
 logging:
   level:
     com.entreprise.gadgets: DEBUG
-

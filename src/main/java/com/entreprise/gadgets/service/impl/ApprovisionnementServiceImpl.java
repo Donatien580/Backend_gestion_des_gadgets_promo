@@ -105,7 +105,7 @@ public class ApprovisionnementServiceImpl implements ApprovisionnementService {
         int quantiteRecue = ligneRequete.quantiteRecue();
         int quantiteDefectueuse = ligneRequete.quantiteDefectueuse() != null ? ligneRequete.quantiteDefectueuse() : 0;
 
-        validerQuantites(quantiteRecue, quantiteDefectueuse, gadget.getLibelle());
+        validerQuantites(quantiteRecue, quantiteDefectueuse, gadget.getLibelle(), ligneRequete.observationQualite());
 
         int quantiteConforme = quantiteRecue - quantiteDefectueuse;
 
@@ -146,18 +146,13 @@ public class ApprovisionnementServiceImpl implements ApprovisionnementService {
     private void corrigerLigne(Approvisionnement approvisionnement, LigneCorrectionRequest ligneRequete,
         Utilisateur utilisateur) {
 
-        LigneApprovisionnement ligneErronee = approvisionnement.getLignes().stream()
-            .filter(l -> l.getIdLigne().equals(ligneRequete.idLigne()) && Boolean.TRUE.equals(l.getActif()))
-            .findFirst()
-            .orElseThrow(() -> new BusinessException(
-                "Aucune ligne active portant l'identifiant " + ligneRequete.idLigne()
-                    + " n'a été trouvée pour cet approvisionnement (déjà corrigée ou inexistante)."));
+    	    LigneApprovisionnement ligneErronee = trouverLigneActive(approvisionnement, ligneRequete.idLigne());
 
         Gadget gadget = ligneErronee.getGadget();
 
         int nouvelleQuantiteRecue = ligneRequete.quantiteRecue();
         int nouvelleQuantiteDefectueuse = ligneRequete.quantiteDefectueuse() != null ? ligneRequete.quantiteDefectueuse() : 0;
-        validerQuantites(nouvelleQuantiteRecue, nouvelleQuantiteDefectueuse, gadget.getLibelle());
+        validerQuantites(nouvelleQuantiteRecue, nouvelleQuantiteDefectueuse, gadget.getLibelle(), ligneRequete.observationQualite());
 
         int ancienneQuantiteDefectueuse = ligneErronee.getQuantiteDefectueuse() != null ? ligneErronee.getQuantiteDefectueuse() : 0;
         int ancienneQuantiteConforme = ligneErronee.getQuantiteRecue() - ancienneQuantiteDefectueuse;
@@ -189,17 +184,62 @@ public class ApprovisionnementServiceImpl implements ApprovisionnementService {
             approvisionnement.getIdApprovisionnement(), "APPROVISIONNEMENT");
     }
 
-    private void validerQuantites(int quantiteRecue, int quantiteDefectueuse, String libelleGadget) {
+    private void validerQuantites(int quantiteRecue, int quantiteDefectueuse, String libelleGadget, String observationQualite) {
         if (quantiteDefectueuse > quantiteRecue || quantiteDefectueuse < 0) {
             throw new BusinessException(
                 "La quantité défectueuse (" + quantiteDefectueuse + ") est un nombre entier positif et ne peut pas dépasser la quantité reçue ("
                     + quantiteRecue + ") pour \"" + libelleGadget + "\".");
+        }
+        //Observation obligatoire si défectueuse
+        if(quantiteDefectueuse > 0
+        		&& (observationQualite ==  null || observationQualite.isBlank())) {
+        	    throw new BusinessException(
+        	            "L'observation qualité est obligatoire lorsqu'une quantité défectueuse "
+        	                    + "est signalée pour \"" + libelleGadget + "\".");
         }
     }
 
     private Approvisionnement trouverParId(Integer id) {
         return approvisionnementRepository.findById(id)
             .orElseThrow(() -> RessourceIntrouvableException.pour("Approvisionnement", id));
+    }
+    
+    /**
+     * Trouve la ligne active visée par une correction, en suivant la chaîne des
+     * remplacements successifs si l'identifiant fourni correspond à une version
+     * déjà corrigée.
+    **/
+    private LigneApprovisionnement trouverLigneActive(Approvisionnement approvisionnement, Integer idLigne) {
+        java.util.Set<Integer> dejaVus = new java.util.HashSet<>();
+        Integer idCourant = idLigne;
+
+        while (idCourant != null && dejaVus.add(idCourant)) {
+            final Integer idCible = idCourant;
+
+            LigneApprovisionnement ligne = approvisionnement.getLignes().stream()
+                .filter(l -> l.getIdLigne().equals(idCible))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(
+                    "Aucune ligne portant l'identifiant " + idLigne
+                        + " n'a été trouvée pour cet approvisionnement."));
+
+            if (Boolean.TRUE.equals(ligne.getActif())) {
+                return ligne;
+            }
+
+            // La ligne est inactive : on cherche celle qui l'a remplacée
+            Integer idLigneInactive = ligne.getIdLigne();
+            idCourant = approvisionnement.getLignes().stream()
+                .filter(l -> l.getLigneRemplacee() != null
+                          && l.getLigneRemplacee().getIdLigne().equals(idLigneInactive))
+                .map(LigneApprovisionnement::getIdLigne)
+                .findFirst()
+                .orElse(null);
+        }
+
+        throw new BusinessException(
+            "Aucune ligne active n'a été trouvée pour l'identifiant " + idLigne
+                + " (chaîne de corrections interrompue ou cyclique).");
     }
     
     @Override

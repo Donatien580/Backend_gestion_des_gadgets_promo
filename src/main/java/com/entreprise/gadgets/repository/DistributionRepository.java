@@ -9,16 +9,27 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 public interface DistributionRepository extends JpaRepository<Distribution, Integer> {
-    
-	long countByDateDistributionAfter(LocalDateTime date);
-	
-	boolean existsByNumeroBordereau(String numero);
-    Optional<Distribution> findByDemande_IdDemande(Integer idDemande);
-    //Page<Distribution> findAll(Pageable pageable);
-    
+
+    long countByDateDistributionAfter(LocalDateTime date);
+
+    boolean existsByNumeroBordereau(String numero);
+
+    @Query("""
+        SELECT d FROM Distribution d
+        LEFT JOIN d.demande dem
+        WHERE LOWER(d.numeroBordereau) LIKE LOWER(CONCAT('%', :recherche, '%'))
+           OR LOWER(d.destinataire) LIKE LOWER(CONCAT('%', :recherche, '%'))
+           OR LOWER(d.nomReceptionnaire) LIKE LOWER(CONCAT('%', :recherche, '%'))
+           OR LOWER(d.prenomReceptionnaire) LIKE LOWER(CONCAT('%', :recherche, '%'))
+           OR LOWER(d.serviceReceptionnaire) LIKE LOWER(CONCAT('%', :recherche, '%'))
+           OR LOWER(d.structureBeneficiaire) LIKE LOWER(CONCAT('%', :recherche, '%'))
+           OR LOWER(d.matriculeReceptionnaire) LIKE LOWER(CONCAT('%', :recherche, '%'))
+           OR LOWER(dem.numeroDemande) LIKE LOWER(CONCAT('%', :recherche, '%'))
+        """)
+    Page<Distribution> rechercher(@Param("recherche") String recherche, Pageable pageable);
+
     @Query("SELECT DISTINCT d.nomReceptionnaire FROM Distribution d WHERE d.nomReceptionnaire IS NOT NULL AND LOWER(d.nomReceptionnaire) LIKE LOWER(CONCAT(:prefixe, '%')) ORDER BY d.nomReceptionnaire")
     List<String> suggererNomsReceptionnaire(@Param("prefixe") String prefixe, Pageable pageable);
 

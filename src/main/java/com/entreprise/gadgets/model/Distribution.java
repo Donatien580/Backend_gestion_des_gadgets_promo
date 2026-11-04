@@ -63,15 +63,27 @@ public class Distribution {
 
     @Column(name = "nombre_personnes")
     private Integer nombrePersonnes;
+    
+    @Column(name = "structure_beneficiaire", length = 150)
+    private String structureBeneficiaire;
 
     /** Nullable : absente pour une dotation. */
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_demande", unique = true)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_demande")
     private Demande demande;
+    
+    /**@OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_demande", unique = true)
+    private Demande demande;**/
 
     @OneToMany(mappedBy = "distribution", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<LigneDistribution> lignes = new ArrayList<>();
+    
+    @OneToMany(mappedBy = "distribution", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("ordre ASC")
+    @Builder.Default
+    private List<SignataireDistribution> signataires = new ArrayList<>();
 
     @PrePersist
     protected void onCreate() {

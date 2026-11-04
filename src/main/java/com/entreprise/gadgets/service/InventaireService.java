@@ -9,7 +9,7 @@ import org.springframework.data.domain.Pageable;
 
 public interface InventaireService {
 
-    Page<InventaireResponse> lister(Pageable pageable);
+	Page<InventaireResponse> lister(String recherche, Pageable pageable);
 
     InventaireResponse obtenirParId(Integer idInventaire);
 

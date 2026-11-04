@@ -1,28 +1,27 @@
 package com.entreprise.gadgets.controller;
 
-import com.entreprise.gadgets.dto.request.AffectationDemandeRequest;
 import com.entreprise.gadgets.dto.request.DemandeRequest;
 import com.entreprise.gadgets.dto.request.RefusDemandeRequest;
-import com.entreprise.gadgets.dto.response.AgentResume;
 import com.entreprise.gadgets.dto.response.DemandeResponse;
 import com.entreprise.gadgets.dto.response.PageResponse;
 import com.entreprise.gadgets.model.enums.EtatDemande;
 import com.entreprise.gadgets.service.DemandeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/demandes")
 @RequiredArgsConstructor
 public class DemandeController {
 
-	private final DemandeService demandeService;
+    private final DemandeService demandeService;
 
     @GetMapping
     public PageResponse<DemandeResponse> lister(
@@ -32,11 +31,6 @@ public class DemandeController {
         @RequestParam(defaultValue = "10") int size
     ) {
         return demandeService.lister(etat, recherche, page, size);
-    }
-
-    @GetMapping("/agents-affectables")
-    public List<AgentResume> listerAgentsAffectables() {
-        return demandeService.listerAgentsAffectables();
     }
 
     @GetMapping("/{id}")
@@ -70,15 +64,21 @@ public class DemandeController {
     }
 
     @PatchMapping("/{id}/annuler")
-    @PreAuthorize("hasAnyRole('AGENT_SAISIE','CHEF_SERVICE','CHEF_DEPARTEMENT','ADMIN')")
+    @PreAuthorize("hasAnyRole('AGENT_SAISIE','ADMIN')")
     public DemandeResponse annuler(@PathVariable Integer id) {
         return demandeService.annuler(id);
     }
 
     @PatchMapping("/{id}/affecter")
     @PreAuthorize("hasAnyRole('CHEF_DEPARTEMENT','ADMIN')")
-    public DemandeResponse affecter(@PathVariable Integer id, @Valid @RequestBody AffectationDemandeRequest requete) {
-        return demandeService.affecter(id, requete);
+    public DemandeResponse affecter(@PathVariable Integer id) {
+        return demandeService.affecter(id);
+    }
+    
+    @PatchMapping("/{id}/traiter")
+    @PreAuthorize("hasAnyRole('CHEF_SERVICE', 'ADMIN')")
+    public DemandeResponse traiter(@PathVariable Integer id) {
+        return demandeService.traiter(id);
     }
 
     @PostMapping("/{id}/piece-justificative")

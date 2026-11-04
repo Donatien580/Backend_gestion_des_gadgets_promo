@@ -38,13 +38,13 @@ public class ApprovisionnementController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('GESTIONNAIRE_STOCK','ADMIN')")
+    @PreAuthorize("hasAnyRole('GESTIONNAIRE_STOCK','CHEF_SERVICE','CHEF_DEPARTEMENT','ADMIN')")
     public ApprovisionnementResponse creer(@Valid @RequestBody ApprovisionnementRequest requete) {
         return approvisionnementService.creer(requete);
     }
     
     @PatchMapping("/{id}/corriger")
-    @PreAuthorize("hasAnyRole('GESTIONNAIRE_STOCK','ADMIN')")
+    @PreAuthorize("hasAnyRole('GESTIONNAIRE_STOCK','ADMIN','CHEF_SERVICE','CHEF_DEPARTEMENT')")
     public ApprovisionnementResponse corriger(
             @PathVariable Integer id,
             @Valid @RequestBody CorrectionApprovisionnementRequest requete

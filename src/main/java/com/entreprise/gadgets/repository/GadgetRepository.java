@@ -29,4 +29,8 @@ public interface GadgetRepository extends JpaRepository<Gadget, Integer> {
     
     List<Gadget> findTop10ByActifTrueOrderByQuantiteDisponibleDesc();
     
+    /**Trie par catégorie puis libellé**/
+    @Query("SELECT g FROM Gadget g JOIN FETCH g.categorie WHERE g.actif = true ORDER BY g.categorie.libelle ASC, g.libelle ASC")
+    List<Gadget> findByActifTrueOrderByCategorie_LibelleAscLibelleAsc();
+    
 }

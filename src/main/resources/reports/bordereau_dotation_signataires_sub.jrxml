@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="BordereauDotationSignataires" pageWidth="555" pageHeight="842" columnWidth="555" leftMargin="0" rightMargin="0" topMargin="0" bottomMargin="0" whenNoDataType="AllSectionsNoDetail" isIgnorePagination="true">
+	<field name="nom" class="java.lang.String"/>
+	<detail>
+		<band height="22">
+			<textField isStretchWithOverflow="true">
+				<reportElement x="0" y="0" width="360" height="22"/>
+				<textElement verticalAlignment="Bottom"/>
+				<textFieldExpression><![CDATA[($F{nom} == null || $F{nom}.trim().isEmpty()) ? "............................................................" : $F{nom}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="380" y="0" width="175" height="22"/>
+				<textElement verticalAlignment="Bottom"/>
+				<text><![CDATA[.............................................]]></text>
+			</staticText>
+		</band>
+	</detail>
+</jasperReport>
